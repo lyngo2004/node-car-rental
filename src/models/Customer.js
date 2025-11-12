@@ -1,13 +1,12 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/sequelize');
-const { v4: uuidv4 } = require('uuid');
+const { sequelize } = require('../config/Sequelize');
 const UserAccount = require('./UserAccount');
 
 const Customer = sequelize.define('Customer', {
     CustomerId: {
         type: DataTypes.STRING(450),
         primaryKey: true,
-        defaultValue: () => uuidv4(), // tự động tạo ID
+        allowNull: false,
     },
     UserId: {
         type: DataTypes.STRING(450),
@@ -20,7 +19,7 @@ const Customer = sequelize.define('Customer', {
     DriverLicense: DataTypes.STRING,
     DateOfBirth: DataTypes.DATE,
 }, {
-    tableName: 'Customers',
+    tableName: 'Customer',
     timestamps: false,
 });
 

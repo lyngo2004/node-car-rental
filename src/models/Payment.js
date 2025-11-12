@@ -1,12 +1,12 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/sequelize');
+const { sequelize } = require('../config/Sequelize');
 const Rental = require('./Rental');
 
 const Payment = sequelize.define('Payment', {
     PaymentId: { 
         type: DataTypes.STRING(450), 
         primaryKey: true,
-        defaultValue: () => uuidv4(),
+        allowNull: false,
     },
     RentalId: { type: DataTypes.STRING(450), allowNull: false },
     PaymentDate: { type: DataTypes.DATE, allowNull: true },
@@ -14,7 +14,7 @@ const Payment = sequelize.define('Payment', {
     PaymentMethod: { type: DataTypes.STRING, allowNull: true },
     IsPaid: { type: DataTypes.BOOLEAN, allowNull: true }
 }, {
-    tableName: 'Payments',
+    tableName: 'Payment',
     timestamps: false
 });
 

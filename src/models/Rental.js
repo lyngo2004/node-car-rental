@@ -1,5 +1,5 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/sequelize');
+const { sequelize } = require('../config/Sequelize');
 const Customer = require('./Customer');
 const Car = require('./Car');
 const Employee = require('./Employee');
@@ -8,7 +8,7 @@ const Rental = sequelize.define('Rental', {
     RentalId: { 
         type: DataTypes.STRING(450), 
         primaryKey: true,
-        defaultValue: () => uuidv4(), 
+        allowNull: false,
     },
     CustomerId: { type: DataTypes.STRING(450), allowNull: false },
     CarId: { type: DataTypes.STRING(450), allowNull: false },
@@ -23,7 +23,7 @@ const Rental = sequelize.define('Rental', {
     ProcessedBy: { type: DataTypes.STRING(450), allowNull: true },
     IssuedDate: { type: DataTypes.DATE, allowNull: false }
 }, {
-    tableName: 'Rentals',
+    tableName: 'Rental',
     timestamps: false
 });
 

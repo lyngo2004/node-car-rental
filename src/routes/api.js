@@ -1,3 +1,5 @@
+//src\routes\api.js
+
 // const express = require('express');
 // const { createUser } = require('../controllers/userController'); // ✅ import đúng
 

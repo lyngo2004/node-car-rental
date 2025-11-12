@@ -1,12 +1,11 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/Sequelize');
-const { v4: uuidv4 } = require('uuid');
 
 const UserAccount = sequelize.define('UserAccount', {
     UserId: {
         type: DataTypes.STRING(450),
         primaryKey: true,
-        defaultValue: () => uuidv4(), // tự động tạo ID dạng GUID
+        allowNull: false,
     },
     Username: { type: DataTypes.STRING(450), allowNull: false, unique: true },
     HashPassword: { type: DataTypes.STRING(255), allowNull: false },
@@ -16,6 +15,7 @@ const UserAccount = sequelize.define('UserAccount', {
 }, {
     tableName: 'UserAccount',
     timestamps: false,
+    hasTrigger: true,
 });
 
 module.exports = UserAccount;

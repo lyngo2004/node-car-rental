@@ -1,13 +1,12 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/sequelize');
-const { v4: uuidv4 } = require('uuid');
+const { sequelize } = require('../config/Sequelize');
 const UserAccount = require('./UserAccount');
 
 const Employee = sequelize.define('Employee', {
     EmployeeId: {
         type: DataTypes.STRING(450),
         primaryKey: true,
-        defaultValue: () => uuidv4(),
+        allowNull: false,
     },
     UserId: {
         type: DataTypes.STRING(450),
