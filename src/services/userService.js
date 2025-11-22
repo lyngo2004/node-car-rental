@@ -2,8 +2,10 @@
 const User = require("../models/UserAccount");
 const Customer = require("../models/Customer");
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 const { Op } = require("sequelize");
 const { sequelize } = require("../config/Sequelize");
+const e = require("express");
 const saltRounds = 10;
 
 const createUserService = async (username, email, password) => {
@@ -73,4 +75,51 @@ const createUserService = async (username, email, password) => {
   }
 };
 
-module.exports = { createUserService };
+const loginService = async (username, password) => {
+  try {
+    //fetch user by username
+    const user = await User.findOne({ where: { Username: username } });
+    if (!user) {
+      return {
+        EC: 1,
+        EM: "Username/password not found",
+        DT: "",
+      }
+    }
+
+    // Compare password
+    const isMatch = await bcrypt.compare(password, user.HashPassword);
+    if (!isMatch) {
+      return {
+        EC: 2,
+        EM: "Username/password not found",
+        DT: "",
+      }
+    } else {
+      //create session or access token (to be implemented)
+      const payload = {
+        userId: user.UserId,
+        username: user.Username,
+        role: user.Role,
+      };
+      const accessToken = jwt.sign(
+        payload,
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.JWT_EXPIRES_IN });
+      return {
+        accessToken,
+        user: {
+          username: user.Username,
+          email: user.Email,
+        }
+      };
+    }
+  } catch (error) {
+    console.log(error);
+    return null;
+  }
+};
+
+module.exports = {
+  createUserService, loginService
+};

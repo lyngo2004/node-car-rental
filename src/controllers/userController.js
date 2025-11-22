@@ -1,5 +1,5 @@
 //src\controllers\userController.js
-const { createUserService } = require("../services/userService");
+const { createUserService, loginService } = require("../services/userService");
 
 const createUser = async (req, res) => {
   try {
@@ -20,14 +20,20 @@ const createUser = async (req, res) => {
       },
     });
 
-  } catch (err){
+  } catch (err) {
     console.error("Error in createUser:", err);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
+const handleLogin = async (req, res) => {
+  const { username, password } = req.body;
+  const data = await loginService(username, password);
+  return res.status(200).json(data);
+};
+
 module.exports = {
-  createUser,
+  createUser, handleLogin
 };
 
 
