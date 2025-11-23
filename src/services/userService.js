@@ -107,16 +107,25 @@ const loginService = async (username, password) => {
         process.env.JWT_SECRET,
         { expiresIn: process.env.JWT_EXPIRES_IN });
       return {
-        accessToken,
-        user: {
-          username: user.Username,
-          email: user.Email,
+        EC: 0,
+        EM: "Login successful",
+        DT:
+        {
+          accessToken,
+          user: {
+            username: user.Username,
+            email: user.Email,
+          }
         }
       };
     }
   } catch (error) {
     console.log(error);
-    return null;
+    return {
+      EC: -1,
+      EM: "Server error",
+      DT: "",
+    };
   }
 };
 
