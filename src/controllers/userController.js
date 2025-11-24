@@ -4,20 +4,26 @@ const { createUserService, loginService } = require("../services/userService");
 const createUser = async (req, res) => {
   try {
     const { username, email, password } = req.body;
-    const newUser = await createUserService(username, email, password);
+    const result = await createUserService(username, email, password);
 
-    if (!newUser) {
-      return res.status(500).json({ success: false, message: "Failed to create user" });
+    if (result.EC === 1) {
+      return res.status(409).json({
+        success: false,
+        message: result.EM
+      });
+    }
+
+    if (result.EC === -1) {
+      return res.status(500).json({
+        success: false,
+        message: "Server error"
+      });
     }
 
     return res.status(201).json({
       success: true,
-      message: "User created successfully",
-      data: {
-        username: newUser.Username,
-        email: newUser.Email,
-        role: newUser.Role,
-      },
+      message: result.EM,
+      data: result.DT
     });
 
   } catch (err) {

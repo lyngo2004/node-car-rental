@@ -5,16 +5,28 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { Op } = require("sequelize");
 const { sequelize } = require("../config/Sequelize");
-const e = require("express");
 const saltRounds = 10;
 
+// CREATE USER SERVICE
 const createUserService = async (username, email, password) => {
   const t = await sequelize.transaction();
+
   try {
-    // Hash password
+    // 1. Check username duplicated
+    const existingUser = await User.findOne({
+      where: { Username: username },
+      transaction: t,
+    });
+
+    if (existingUser) {
+      await t.rollback();
+      return { EC: 1, EM: "Username already exists", DT: "" };
+    }
+
+    // 2. Hash password
     const hashPassword = await bcrypt.hash(password, saltRounds);
 
-    // Create new UserId (UA###)
+    // 3. Generate new UserId: UA###
     const prefixUser = "UA";
     const latestUser = await User.findOne({
       where: { UserId: { [Op.like]: `${prefixUser}%` } },
@@ -23,25 +35,27 @@ const createUserService = async (username, email, password) => {
       lock: true,
     });
 
-    let nextUserNumber = 1;
-    if (latestUser) {
-      const currentCode = parseInt(latestUser.UserId.replace(prefixUser, ""), 10);
-      nextUserNumber = currentCode + 1;
-    }
+    const nextUserNumber = latestUser
+      ? parseInt(latestUser.UserId.replace(prefixUser, ""), 10) + 1
+      : 1;
 
     const nextUserId = `${prefixUser}${String(nextUserNumber).padStart(3, "0")}`;
 
-    // Create new UserAccount
-    const newUser = await User.create({
-      UserId: nextUserId,
-      Username: username,
-      Email: email,
-      HashPassword: hashPassword,
-      Role: "Customer",
-      IsActive: 1,
-    }, { transaction: t });
+    // 4. Create USER ACCOUNT
+    const newUser = await User.create(
+      {
+        UserId: nextUserId,
+        Username: username,
+        Email: email,
+        HashPassword: hashPassword,
+        Role: "Customer",
+        IsActive: 1,
+      },
+      { transaction: t }
+    );
 
-    // Create new CustomerId (C###)
+    // 5. Generate new CustomerId: C###
+
     const prefixCus = "C";
     const latestCus = await Customer.findOne({
       where: { CustomerId: { [Op.like]: `${prefixCus}%` } },
@@ -50,85 +64,87 @@ const createUserService = async (username, email, password) => {
       lock: true,
     });
 
-    let nextCusNumber = 1;
-    if (latestCus) {
-      const currentCode = parseInt(latestCus.CustomerId.replace(prefixCus, ""), 10);
-      nextCusNumber = currentCode + 1;
-    }
+    const nextCusNumber = latestCus
+      ? parseInt(latestCus.CustomerId.replace(prefixCus, ""), 10) + 1
+      : 1;
 
-    const nextCustomerId = `${prefixCus}${String(nextCusNumber).padStart(3, "0")}`;
+    const nextCustomerId = `${prefixCus}${String(nextCusNumber).padStart(
+      3,
+      "0"
+    )}`;
 
-    // Create corresponding customer
-    await Customer.create({
-      CustomerId: nextCustomerId,
-      UserId: nextUserId,
-      Email: email,
-    }, { transaction: t });
+    // 6. Create CUSTOMER record
+    await Customer.create(
+      {
+        CustomerId: nextCustomerId,
+        UserId: nextUserId,
+        Email: email,
+      },
+      { transaction: t }
+    );
 
+    // COMMIT all
     await t.commit();
 
-    return newUser;
+    return {
+      EC: 0,
+      EM: "User created successfully",
+      DT: newUser,
+    };
   } catch (error) {
     await t.rollback();
     console.error("Error in createUserService:", error);
-    return null;
+    return { EC: -1, EM: "Server error", DT: null };
   }
 };
 
+// LOGIN SERVICE
 const loginService = async (username, password) => {
   try {
-    //fetch user by username
+    // 1. Find user by username
     const user = await User.findOne({ where: { Username: username } });
+
     if (!user) {
-      return {
-        EC: 1,
-        EM: "Username/password not found",
-        DT: "",
-      }
+      return { EC: 1, EM: "Username/password not found", DT: "" };
     }
 
-    // Compare password
+    // 2. Compare password
     const isMatch = await bcrypt.compare(password, user.HashPassword);
     if (!isMatch) {
-      return {
-        EC: 2,
-        EM: "Username/password not found",
-        DT: "",
-      }
-    } else {
-      //create session or access token (to be implemented)
-      const payload = {
-        userId: user.UserId,
-        username: user.Username,
-        role: user.Role,
-      };
-      const accessToken = jwt.sign(
-        payload,
-        process.env.JWT_SECRET,
-        { expiresIn: process.env.JWT_EXPIRES_IN });
-      return {
-        EC: 0,
-        EM: "Login successful",
-        DT:
-        {
-          accessToken,
-          user: {
-            username: user.Username,
-            email: user.Email,
-          }
-        }
-      };
+      return { EC: 2, EM: "Username/password not found", DT: "" };
     }
-  } catch (error) {
-    console.log(error);
-    return {
-      EC: -1,
-      EM: "Server error",
-      DT: "",
+
+    // 3. Create JWT token
+    const payload = {
+      userId: user.UserId,
+      username: user.Username,
+      role: user.Role,
     };
+
+    const accessToken = jwt.sign(
+      payload,
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN }
+    );
+
+    return {
+      EC: 0,
+      EM: "Login successful",
+      DT: {
+        accessToken,
+        user: {
+          username: user.Username,
+          email: user.Email,
+        },
+      },
+    };
+  } catch (error) {
+    console.error("Error in loginService:", error);
+    return { EC: -1, EM: "Server error", DT: "" };
   }
 };
 
 module.exports = {
-  createUserService, loginService
+  createUserService,
+  loginService,
 };
