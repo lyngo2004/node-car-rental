@@ -28,9 +28,9 @@ const sequelize = new Sequelize(
 
 async function connectSequelize() {
   try {
-    console.log("🔌 Connecting to SQL Server...");
+    console.log(">>> Connecting to SQL Server...");
     await sequelize.authenticate();
-    console.log("✅ Connected to Sequelize Database!");
+    console.log(">>> Connected to Sequelize Database!");
   } catch (err) {
     console.error(" Sequelize connection failed!");
     console.error("Error name:", err.name);

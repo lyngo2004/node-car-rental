@@ -14,4 +14,6 @@ routerAPI.get('/', (req, res) => {
 routerAPI.use("/user", userRoute);
 routerAPI.use("/car", carRoute);
 
+routerAPI.use("/cloudinary", require("./cloudinary.route"));
+
 module.exports = routerAPI;
