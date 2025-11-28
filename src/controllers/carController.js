@@ -58,6 +58,6 @@ module.exports = {
   getFilterOptionsController,
   filterCarsByTypeController,
   filterCarsByCapacityController,
-  filterCarsByPriceController, 
+  filterCarsByPriceController,
   filterCarsByFiltersController
 };
