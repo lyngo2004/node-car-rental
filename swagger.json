@@ -1,0 +1,512 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Car Rental API Documentation",
+    "description": "API documentation for Car Rental Management System (Node.js + Express + Sequelize).",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000",
+      "description": "Local development server"
+    }
+  ],
+  "tags": [
+    { "name": "Healthcheck" },
+    { "name": "User" },
+    { "name": "Car" },
+    { "name": "Common" },
+    { "name": "Cloudinary" }
+  ],
+  "paths": {
+        "/api/v1/": {
+      "get": {
+        "tags": ["Healthcheck"],
+        "summary": "API status check",
+        "responses": {
+          "200": {
+            "description": "API is working"
+          }
+        }
+      }
+    },
+
+    "/api/v1/user/register": {
+      "post": {
+        "tags": ["User"],
+        "summary": "Register a new user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Registration successful",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BaseResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/api/v1/user/login": {
+      "post": {
+        "tags": ["User"],
+        "summary": "Login user and get token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LoginResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+        "/api/v1/car": {
+      "get": {
+        "tags": ["Car"],
+        "summary": "Get all cars",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "List of cars",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CarListResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/api/v1/car/available": {
+      "get": {
+        "tags": ["Car"],
+        "summary": "Get available cars based on pickup/dropoff time",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "$ref": "#/components/parameters/pickupLocation" },
+          { "$ref": "#/components/parameters/pickupDate" },
+          { "$ref": "#/components/parameters/pickupTime" },
+          { "$ref": "#/components/parameters/dropoffLocation" },
+          { "$ref": "#/components/parameters/dropoffDate" },
+          { "$ref": "#/components/parameters/dropoffTime" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Available cars",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CarListResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/api/v1/car/filter": {
+      "get": {
+        "tags": ["Car"],
+        "summary": "Filter cars by type, capacity, price, and optional pickup/dropoff time",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "$ref": "#/components/parameters/type" },
+          { "$ref": "#/components/parameters/capacity" },
+          { "$ref": "#/components/parameters/minPrice" },
+          { "$ref": "#/components/parameters/maxPrice" },
+          { "$ref": "#/components/parameters/pickupDate" },
+          { "$ref": "#/components/parameters/pickupTime" },
+          { "$ref": "#/components/parameters/dropoffDate" },
+          { "$ref": "#/components/parameters/dropoffTime" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Filtered car list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CarListResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/api/v1/car/filter-options": {
+      "get": {
+        "tags": ["Car"],
+        "summary": "Get filter options (types, capacities, price range)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Returned filter options",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/FilterOptionsResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/api/v1/car/filter-by-type": {
+      "get": {
+        "tags": ["Car"],
+        "summary": "Filter cars by type",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/type" }],
+        "responses": {
+          "200": {
+            "description": "Filtered cars by type",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CarListResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/api/v1/car/filter-by-capacity": {
+      "get": {
+        "tags": ["Car"],
+        "summary": "Filter cars by capacity",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/capacity" }],
+        "responses": {
+          "200": {
+            "description": "Filtered cars by capacity",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CarListResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/api/v1/car/filter-by-price": {
+      "get": {
+        "tags": ["Car"],
+        "summary": "Filter cars by price range",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "$ref": "#/components/parameters/minPrice" },
+          { "$ref": "#/components/parameters/maxPrice" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Filtered cars by price range",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CarListResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+        "/api/v1/common/locations": {
+      "get": {
+        "tags": ["Common"],
+        "summary": "Get list of pickup/dropoff locations",
+        "responses": {
+          "200": {
+            "description": "List of locations",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CommonListResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/api/v1/common/timeslots": {
+      "get": {
+        "tags": ["Common"],
+        "summary": "Get list of timeslots",
+        "responses": {
+          "200": {
+            "description": "List of timeslots",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CommonListResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+        "/api/v1/cloudinary/car-images": {
+      "get": {
+        "tags": ["Cloudinary"],
+        "summary": "Get all car images from Cloudinary",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "List of Cloudinary images",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CloudinaryImageListResponse" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+    "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+
+    "parameters": {
+      "pickupLocation": {
+        "name": "pickupLocation",
+        "in": "query",
+        "required": true,
+        "schema": { "type": "string" }
+      },
+      "pickupDate": {
+        "name": "pickupDate",
+        "in": "query",
+        "required": true,
+        "schema": { "type": "string", "example": "2025-11-27" }
+      },
+      "pickupTime": {
+        "name": "pickupTime",
+        "in": "query",
+        "required": true,
+        "schema": { "type": "string", "example": "10:00" }
+      },
+      "dropoffLocation": {
+        "name": "dropoffLocation",
+        "in": "query",
+        "required": true,
+        "schema": { "type": "string" }
+      },
+      "dropoffDate": {
+        "name": "dropoffDate",
+        "in": "query",
+        "required": true,
+        "schema": { "type": "string", "example": "2025-11-29" }
+      },
+      "dropoffTime": {
+        "name": "dropoffTime",
+        "in": "query",
+        "required": true,
+        "schema": { "type": "string", "example": "16:00" }
+      },
+
+      "type": {
+        "name": "type",
+        "in": "query",
+        "schema": {
+          "type": "string",
+          "example": "SUV,Sedan"
+        }
+      },
+
+      "capacity": {
+        "name": "capacity",
+        "in": "query",
+        "schema": {
+          "type": "string",
+          "example": "4,7"
+        }
+      },
+
+      "minPrice": {
+        "name": "min",
+        "in": "query",
+        "schema": { "type": "number" }
+      },
+      "maxPrice": {
+        "name": "max",
+        "in": "query",
+        "schema": { "type": "number" }
+      }
+    },
+
+    "schemas": {
+      "BaseResponse": {
+        "type": "object",
+        "properties": {
+          "EC": { "type": "integer" },
+          "EM": { "type": "string" },
+          "DT": {}
+        }
+      },
+
+      "RegisterRequest": {
+        "type": "object",
+        "required": ["username", "email", "password"],
+        "properties": {
+          "username": { "type": "string" },
+          "email": { "type": "string" },
+          "password": { "type": "string" }
+        }
+      },
+
+      "LoginRequest": {
+        "type": "object",
+        "required": ["username", "password"],
+        "properties": {
+          "username": { "type": "string" },
+          "password": { "type": "string" }
+        }
+      },
+
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "EC": { "type": "integer" },
+          "EM": { "type": "string" },
+          "DT": {
+            "type": "object",
+            "properties": {
+              "accessToken": { "type": "string" },
+              "user": {
+                "type": "object",
+                "properties": {
+                  "username": { "type": "string" },
+                  "email": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      },
+
+      "Car": {
+        "type": "object",
+        "properties": {
+          "CarId": { "type": "string" },
+          "LicensePlate": { "type": "string" },
+          "Brand": { "type": "string" },
+          "Model": { "type": "string" },
+          "ManufactureYear": { "type": "integer" },
+          "CarStatus": { "type": "string" },
+          "PricePerDay": { "type": "number" },
+          "Mileage": { "type": "number" },
+          "CarType": { "type": "string" },
+          "Capacity": { "type": "integer" },
+          "Color": { "type": "string" },
+          "Description": { "type": "string" },
+          "ImagePath": { "type": "string" }
+        }
+      },
+
+      "CarListResponse": {
+        "type": "object",
+        "properties": {
+          "EC": { "type": "integer" },
+          "EM": { "type": "string" },
+          "DT": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Car" }
+          }
+        }
+      },
+
+      "FilterOptionsResponse": {
+        "type": "object",
+        "properties": {
+          "EC": { "type": "integer" },
+          "EM": { "type": "string" },
+          "DT": {
+            "type": "object",
+            "properties": {
+              "types": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "CarType": { "type": "string" },
+                    "count": { "type": "integer" }
+                  }
+                }
+              },
+              "capacities": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "Capacity": { "type": "integer" },
+                    "count": { "type": "integer" }
+                  }
+                }
+              },
+              "price": {
+                "type": "object",
+                "properties": {
+                  "min": { "type": "number" },
+                  "max": { "type": "number" }
+                }
+              }
+            }
+          }
+        }
+      },
+
+      "CommonListResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+
+      "CloudinaryImageListResponse": {
+        "type": "object",
+        "properties": {
+          "EC": { "type": "integer" },
+          "EM": { "type": "string" },
+          "DT": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "public_id": { "type": "string" },
+                "url": { "type": "string" },
+                "secure_url": { "type": "string" },
+                "created_at": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

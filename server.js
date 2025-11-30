@@ -6,13 +6,15 @@ const { connectSequelize } = require('./src/config/Sequelize');
 const path = require('path');
 const apiRoutes = require(path.join(__dirname, 'src', 'routes', 'api'));
 const commonRoute = require("./src/routes/common.route");
-
-
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// API Documentation setup
+const swaggerUi = require("swagger-ui-express");
+const swaggerDocument = require("./swagger.json");
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // Mount routes trước
 app.use('/api/v1', apiRoutes);
