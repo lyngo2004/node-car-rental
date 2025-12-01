@@ -6,6 +6,8 @@ const auth = (req, res, next) => {
         '/',
         '/user/login',
         '/user/register',
+        '/common/locations',
+        '/common/timeslots',
     ]
     if (white_lists.find(item => '/api/v1' + item === req.originalUrl)) {
         next();

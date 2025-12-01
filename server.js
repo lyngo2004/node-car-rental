@@ -6,16 +6,18 @@ const { connectSequelize } = require('./src/config/Sequelize');
 const path = require('path');
 const apiRoutes = require(path.join(__dirname, 'src', 'routes', 'api'));
 const commonRoute = require("./src/routes/common.route");
-
+const { swaggerUi, swaggerSpec } = require("./src/config/swagger");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Mount Swagger UI
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// Mount routes trước
-app.use('/api/v1', apiRoutes);
+// Mount APIs
+app.use("/api/v1", apiRoutes);
 
 app.get('/', (req, res) => {
   res.send('>>> Server and SQL Server are connected!');

@@ -54,7 +54,6 @@ const filterAvailableCarsFromList = (cars, start, end) => cars.filter((car) => {
     }
     return true;
 });
-// ---------------------------------------------------------
 
 // GET ALL CARS
 const fetchAllCars = async () => {
@@ -192,37 +191,37 @@ const fetchFilterOptions = async () => {
 };
 
 
-const fetchCarsByType = async (type) => {
-    try {
-        // delegate to fetchCarsByFilters to reuse parsing/availability logic
-        return await fetchCarsByFilters({ type });
-    } catch (error) {
-        return { EC: -1, EM: "Error fetching type", DT: null };
-    }
-};
+// const fetchCarsByType = async (type) => {
+//     try {
+//         // delegate to fetchCarsByFilters to reuse parsing/availability logic
+//         return await fetchCarsByFilters({ type });
+//     } catch (error) {
+//         return { EC: -1, EM: "Error fetching type", DT: null };
+//     }
+// };
 
-const fetchCarsByCapacity = async (capacity) => {
-    try {
-        return await fetchCarsByFilters({ capacity });
-    } catch (error) {
-        return { EC: -1, EM: "Error fetching type", DT: null };
-    }
-};
+// const fetchCarsByCapacity = async (capacity) => {
+//     try {
+//         return await fetchCarsByFilters({ capacity });
+//     } catch (error) {
+//         return { EC: -1, EM: "Error fetching type", DT: null };
+//     }
+// };
 
-const fetchCarsByPrice = async (min, max) => {
-    try {
-        return await fetchCarsByFilters({ min, max });
+// const fetchCarsByPrice = async (min, max) => {
+//     try {
+//         return await fetchCarsByFilters({ min, max });
 
-    } catch (error) {
-        console.log(">>> fetchCarsByPrice error:", error);
+//     } catch (error) {
+//         console.log(">>> fetchCarsByPrice error:", error);
 
-        return {
-            EC: -1,
-            EM: "Internal server error",
-            DT: null
-        };
-    }
-};
+//         return {
+//             EC: -1,
+//             EM: "Internal server error",
+//             DT: null
+//         };
+//     }
+// };
 
 // FETCH CARS WITH MULTIPLE FILTERS (type(s), capacity(s), price range, optional availability)
 // - Supports `type` query as array or comma-separated string
@@ -300,8 +299,5 @@ module.exports = {
     fetchAllCars,
     fetchAvailableCarsByPickDrop,
     fetchFilterOptions,
-    fetchCarsByType,
-    fetchCarsByCapacity,
-    fetchCarsByPrice,
     fetchCarsByFilters
 };
