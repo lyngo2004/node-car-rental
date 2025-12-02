@@ -4,7 +4,7 @@ const getAllCarImages = async () => {
   try {
     const result = await cloudinary.search
       .expression("folder:Cars")      // folder tên cars
-      .max_results(50)               // tùy số ảnh bạn có
+      .max_results(50)               
       .execute();
 
     return result.resources.map(img => ({
