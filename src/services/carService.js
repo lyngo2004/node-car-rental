@@ -190,39 +190,6 @@ const fetchFilterOptions = async () => {
     }
 };
 
-
-// const fetchCarsByType = async (type) => {
-//     try {
-//         // delegate to fetchCarsByFilters to reuse parsing/availability logic
-//         return await fetchCarsByFilters({ type });
-//     } catch (error) {
-//         return { EC: -1, EM: "Error fetching type", DT: null };
-//     }
-// };
-
-// const fetchCarsByCapacity = async (capacity) => {
-//     try {
-//         return await fetchCarsByFilters({ capacity });
-//     } catch (error) {
-//         return { EC: -1, EM: "Error fetching type", DT: null };
-//     }
-// };
-
-// const fetchCarsByPrice = async (min, max) => {
-//     try {
-//         return await fetchCarsByFilters({ min, max });
-
-//     } catch (error) {
-//         console.log(">>> fetchCarsByPrice error:", error);
-
-//         return {
-//             EC: -1,
-//             EM: "Internal server error",
-//             DT: null
-//         };
-//     }
-// };
-
 // FETCH CARS WITH MULTIPLE FILTERS (type(s), capacity(s), price range, optional availability)
 // - Supports `type` query as array or comma-separated string
 // - Supports `capacity` query as single value, array, or comma-separated string
@@ -294,10 +261,37 @@ const fetchCarsByFilters = async (params) => {
     }
 };
 
+const fetchCarById = async (carId) => {
+    try {
+        const car = await Car.findByPk(carId);
+
+        if (!car) {
+            return {
+                EC: 1,
+                EM: "Car not found",
+                DT: null
+            };
+        }
+        return {
+            EC: 0,
+            EM: "Success",
+            DT: car
+        };
+    } catch (error) {
+        console.log(">>> fetchCarById error:", error);
+        return {
+            EC: -1, 
+            EM: "Internal server error",
+            DT: null
+        };
+    }
+};
+
 
 module.exports = {
     fetchAllCars,
     fetchAvailableCarsByPickDrop,
     fetchFilterOptions,
-    fetchCarsByFilters
+    fetchCarsByFilters,
+    fetchCarById
 };

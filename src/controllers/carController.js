@@ -2,7 +2,8 @@ const {
   fetchAllCars,
   fetchAvailableCarsByPickDrop,
   fetchFilterOptions,
-  fetchCarsByFilters
+  fetchCarsByFilters,
+  fetchCarById
 } = require("../services/carService");
 
 const getAllCarsController = async (req, res) => {
@@ -26,9 +27,16 @@ const filterCarsByFiltersController = async (req, res) => {
   return res.status(200).json(data);
 };
 
+const getCarByIdController = async (req, res) => {
+  const carId = req.params.id;
+  const data = await fetchCarById(carId);
+  return res.status(200).json(data);
+};
+
 module.exports = {
   getAllCarsController,
   getAvailableCarsController,
   getFilterOptionsController,
-  filterCarsByFiltersController
+  filterCarsByFiltersController,
+  getCarByIdController
 };

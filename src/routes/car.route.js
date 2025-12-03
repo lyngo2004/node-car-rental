@@ -3,7 +3,8 @@ const {
     getAllCarsController,
     getAvailableCarsController,
     getFilterOptionsController,
-    filterCarsByFiltersController
+    filterCarsByFiltersController,
+    getCarByIdController
 } = require('../controllers/carController');
 
 const router = express.Router();
@@ -194,5 +195,61 @@ router.get("/filter-options", getFilterOptionsController);
  */
 router.get("/filter", filterCarsByFiltersController);
 
+/**
+ * @swagger
+ * /api/v1/car/{id}:
+ *   get:
+ *     summary: Get detail of a single car
+ *     tags: [Cars]
+ *     security:
+ *       - bearerAuth: []
+ *
+ *     description: >
+ *       Returns the detailed information of one car by its CarId.
+ *       If the car does not exist, the API still returns HTTP 200
+ *       with EC = 1 and DT = null.
+ *
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: CarId (primary key of Car table)
+ *         schema:
+ *           type: integer
+ *         example: 1
+ *
+ *     responses:
+ *       200:
+ *         description: Car detail lookup (EC = 0 if found, EC = 1 if not found)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/BaseResponse"
+ *             examples:
+ *               success:
+ *                 summary: Car found
+ *                 value:
+ *                   EC: 0
+ *                   EM: "Success"
+ *                   DT:
+ *                     CarId: CAR001
+ *                     CarName: "Nissan GT - R"
+ *                     Type: "Sport"
+ *                     Capacity: 2
+ *                     PricePerDay: 80
+ *               notFound:
+ *                 summary: Car not found
+ *                 value:
+ *                   EC: 1
+ *                   EM: "Car not found"
+ *                   DT: null
+ *
+ *       401:
+ *         $ref: "#/components/responses/UnauthorizedError"
+ *
+ *       500:
+ *         $ref: "#/components/responses/ServerError"
+ */
+router.get("/:id", getCarByIdController);
 
 module.exports = router;
