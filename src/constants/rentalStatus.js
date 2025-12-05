@@ -1,1 +1,1 @@
-exports.ACTIVE_RENTAL_STATUSES = ["approved", "waiting"];
+exports.ACTIVE_RENTAL_STATUSES = ["approved", "pending", "rejected"];
