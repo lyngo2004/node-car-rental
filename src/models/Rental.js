@@ -2,7 +2,7 @@ const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/Sequelize');
 const Customer = require('./Customer');
 const Car = require('./Car');
-const Employee = require('./Employee');
+// const Employee = require('./Employee');
 
 const Rental = sequelize.define('Rental', {
     RentalId: { 
@@ -27,14 +27,14 @@ const Rental = sequelize.define('Rental', {
     timestamps: false
 });
 
-// 🔗 Relationships
+//  Relationships
 Rental.belongsTo(Customer, { foreignKey: 'CustomerId' });
 Customer.hasMany(Rental, { foreignKey: 'CustomerId' });
 
 Rental.belongsTo(Car, { foreignKey: 'CarId' });
 Car.hasMany(Rental, { foreignKey: 'CarId' });
 
-Rental.belongsTo(Employee, { foreignKey: 'ProcessedBy' });
-Employee.hasMany(Rental, { foreignKey: 'ProcessedBy' });
+// Rental.belongsTo(Employee, { foreignKey: 'ProcessedBy' });
+// Employee.hasMany(Rental, { foreignKey: 'ProcessedBy' });
 
 module.exports = Rental;

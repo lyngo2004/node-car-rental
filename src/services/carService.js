@@ -94,6 +94,8 @@ const fetchAvailableCarsByPickDrop = async (params) => {
         const newStart = new Date(`${pickupDate}T${pickupTime}:00`);
         const newEnd = new Date(`${dropoffDate}T${dropoffTime}:00`);
 
+        console.log(newStart, newEnd);
+
         if (newStart < now) {
             return {
                 EC: 1,
