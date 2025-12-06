@@ -1,24 +1,29 @@
-const normalizeSQLTime = (t) => {
-  if (!t) return null;
-  t = String(t).trim();
+require("dotenv").config();
 
-  // "6:00" -> "06:00"
-  if (/^\d:\d{2}$/.test(t)) t = "0" + t;
+extractTimeFromSQL = (dateObj) => {
+  if (!(dateObj instanceof Date)) return null;
 
-  // "HH:mm" -> "HH:mm:00"
-  if (/^\d{2}:\d{2}$/.test(t)) return `${t}:00`;
+  const hours = String(dateObj.getUTCHours()).padStart(2, "0");
+  const minutes = String(dateObj.getUTCMinutes()).padStart(2, "0");
 
-  // "HH:mm:ss"
-  if (/^\d{2}:\d{2}:\d{2}$/.test(t)) return t;
+  return `${hours}:${minutes}`;
+}
 
-  throw new Error(`Invalid TIME format: ${t}`);
-};
+combineSQLDateTime = (sqlDateObj, sqlTimeObj) => {
+  // tạo date-time theo local time, KHÔNG QUA UTC
+  const y = sqlDateObj.getUTCFullYear();
+  const m = sqlDateObj.getUTCMonth();
+  const d = sqlDateObj.getUTCDate();
 
-exports.normalizeSQLTime = normalizeSQLTime;
+  const h = sqlTimeObj.getUTCHours();
+  const min = sqlTimeObj.getUTCMinutes();
 
+  // Tạo datetime *local* bằng UTC values
+  return new Date(Date.UTC(y, m, d, h, min));
+}
 
 // Date object để tính toán (logic)
-exports.buildDateObject = (dateVal, timeVal) => {
+buildDateObject = (dateVal, timeVal) => {
   if (!dateVal || !timeVal) return null;
 
   const [year, month, day] = dateVal.split("-").map(Number);
@@ -28,22 +33,20 @@ exports.buildDateObject = (dateVal, timeVal) => {
   return new Date(year, month - 1, day, h, m, 0);
 };
 
+isOverlapWithBuffer = (newStart, newEnd, existingStart, existingEnd, bufferHours = 2) => {
+    const bufferMs = bufferHours * 60 * 60 * 1000;
+    const existingEndWithBuffer = existingEnd.getTime() + bufferMs;
 
+    return (
+        newStart < existingEndWithBuffer &&
+        newEnd > existingStart
+    );
+}
 
-
-// === TRẢ VỀ STRING CHO SQL, KHÔNG TRẢ VỀ DATE OBJECT ===
-exports.combineDateTime = (dateVal, timeVal) => {
-  if (!dateVal || !timeVal) return null;
-
-  const time = normalizeSQLTime(timeVal);   // HH:mm:ss
-  return `${dateVal} ${time}`;              // ví dụ: "2025-12-10 13:00:00"
+module.exports = {
+  buildDateObject,
+  extractTimeFromSQL,
+  combineSQLDateTime,
+  isOverlapWithBuffer
 };
 
-
-// Check overlap (giữ nguyên vì logic đúng)
-exports.isOverlapWithBuffer = (newStart, newEnd, existingStart, existingEnd, bufferHours = 2) => {
-  const bufferMs = bufferHours * 60 * 60 * 1000;
-  const existingEndWithBuffer = new Date(existingEnd.getTime() + bufferMs);
-
-  return !(newEnd <= existingStart || newStart >= existingEndWithBuffer);
-};

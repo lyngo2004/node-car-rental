@@ -1,4 +1,4 @@
-const { buildDateObject } = require("../utils/datetimeUtils");
+const { combineSQLDateTime, buildDateObject } = require("../utils/datetimeUtils");
 const Car = require("../models/Car");
 const { Op } = require("sequelize");
 const { sequelize } = require("../config/Sequelize");
@@ -165,31 +165,26 @@ const checkoutRentalService = async (userId, payload) => {
         }
 
         if (conflictRental) {
-            if (!conflictRental.PickUpDate || !conflictRental.DropOffDate) {
-                console.log("Conflict rental missing date fields → skip overlap check");
-            } else {
+            const existingPick = combineSQLDateTime(
+                conflictRental.PickUpDate,
+                conflictRental.PickUpTime
+            );
 
-                const existingPick = buildDateObject(
-                    formatSQLDateToYMD(conflictRental.PickUpDate),
-                    safeTimeStr(conflictRental.PickUpTime)
-                );
+            const existingDrop = combineSQLDateTime(
+                conflictRental.DropOffDate,
+                conflictRental.DropOffTime
+            );
 
-                const existingDrop = buildDateObject(
-                    formatSQLDateToYMD(conflictRental.DropOffDate),
-                    safeTimeStr(conflictRental.DropOffTime)
-                );
+            const isOverlap =
+                existingPick < dropObj &&
+                existingDrop > pickObj;
 
-                const isOverlap =
-                    existingPick < dropObj &&
-                    existingDrop > pickObj;
-
-                if (isOverlap) {
-                    return {
-                        EC: 1,
-                        EM: "Car is not available at this time",
-                        DT: null
-                    };
-                }
+            if (isOverlap) {
+                return {
+                    EC: 1,
+                    EM: "Car is not available at this time",
+                    DT: null
+                };
             }
         }
 
