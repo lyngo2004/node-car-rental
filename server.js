@@ -1,32 +1,37 @@
+//server.js
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { connectDB } = require('./src/config/db'); // ✅ đường dẫn chính xác
-const apiRoutes = require('./src/routes/api');
+const { connectSequelize } = require('./src/config/Sequelize');
+const path = require('path');
+const apiRoutes = require(path.join(__dirname, 'src', 'routes', 'api'));
+const commonRoute = require("./src/routes/common.route");
+const { swaggerUi, swaggerSpec } = require("./src/config/swagger");
 
 const app = express();
 app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-//config req.body
-app.use(express.json()); // cho JSON
-app.use(express.urlencoded({ extended: true })); // cho form data
+// Mount Swagger UI
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-//config template engine
-// configViewEngine(app);
-
-// Kết nối database
-connectDB();
-
-// Route test
-app.use('/api/v1', apiRoutes);
+// Mount APIs
+app.use("/api/v1", apiRoutes);
 
 app.get('/', (req, res) => {
-  res.send('✅ Server and SQL Server are connected!');
+  res.send('>>> Server and SQL Server are connected!');
 });
 
+app.use("/api/v1/common", commonRoute);
+
+// Kết nối database
+connectSequelize();
+
+// App listen
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
 
 module.exports = app;
