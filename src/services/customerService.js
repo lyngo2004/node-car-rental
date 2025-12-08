@@ -27,7 +27,6 @@ const getCurrentCustomerService = async (userId) => {
       DT: {
         CustomerId: customer.CustomerId,
         FullName: customer.FullName || "",
-        // fallback: nếu bảng Customer chưa có Email thì lấy từ UserAccount
         Email: customer.Email || "",
         Phone: customer.Phone || "",
         Address: customer.Address || "",
