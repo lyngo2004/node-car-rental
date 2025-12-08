@@ -2,7 +2,7 @@ const { Op, fn, col } = require("sequelize");
 const { sequelize } = require("../config/Sequelize");
 const Car = require("../models/Car");
 const Rental = require("../models/Rental");
-const { extractTimeFromSQL, combineSQLDateTime, isOverlapWithBuffer } = require("../utils/datetimeUtils");
+const { combineSQLDateTime, isOverlapWithBuffer } = require("../utils/datetimeUtils");
 const { ACTIVE_RENTAL_STATUSES } = require("../constants/rentalStatus");
 
 // ------------------------ Helpers ------------------------
