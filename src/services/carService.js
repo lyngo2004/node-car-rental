@@ -62,6 +62,15 @@ const filterAvailableCarsFromList = (cars, start, end) =>
 
             if (!existingStart || !existingEnd) continue;
 
+            console.log("=== DEBUG DATETIME BEFORE COMPARE ===");
+            console.log("requestStart:", start, "| ISO:", start.toISOString());
+            console.log("requestEnd:", end, "| ISO:", requestEnd.toISOString());
+
+            console.log("existingStart COMBINED:", existingStart, "| ISO:", existingStart?.toISOString());
+            console.log("existingEnd COMBINED:", existingEnd, "| ISO:", existingEnd?.toISOString());
+            console.log("=======================================");
+
+
             // Overlap check giữ nguyên logic
             if (isOverlapWithBuffer(start, end, existingStart, existingEnd, 2))
                 return false;

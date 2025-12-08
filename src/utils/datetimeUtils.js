@@ -30,16 +30,17 @@ buildDateObject = (dateVal, timeVal) => {
   const [h, m] = timeVal.split(":").map(Number);
 
   // tạo local datetime, KHÔNG bị UTC shift
-  return new Date(year, month - 1, day, h, m, 0);
+  return new Date(Date.UTC(year, month - 1, day, h, m, 0));
 };
 
 isOverlapWithBuffer = (newStart, newEnd, existingStart, existingEnd, bufferHours = 2) => {
     const bufferMs = bufferHours * 60 * 60 * 1000;
+
     const existingEndWithBuffer = existingEnd.getTime() + bufferMs;
 
     return (
         newStart < existingEndWithBuffer &&
-        newEnd > existingStart
+        newEnd >= existingStart
     );
 }
 
