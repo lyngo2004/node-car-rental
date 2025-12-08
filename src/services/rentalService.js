@@ -1,4 +1,4 @@
-const { buildDateObject } = require("../utils/datetimeUtils");
+const { combineSQLDateTime, buildDateObject, isOverlapWithBuffer } = require("../utils/datetimeUtils");
 const Car = require("../models/Car");
 const { Op } = require("sequelize");
 const { sequelize } = require("../config/Sequelize");
@@ -143,53 +143,23 @@ const checkoutRentalService = async (userId, payload) => {
             }
         });
 
-        function safeTimeStr(t) {
-            if (!t) return "00:00";
-            if (typeof t === "string") {
-                return t.substring(0, 5);
-            }
-            if (t instanceof Date) {
-                return t.toTimeString().substring(0, 5);
-            }
-            if (typeof t === "object" && "hours" in t && "minutes" in t) {
-                return `${String(t.hours).padStart(2, "0")}:${String(t.minutes).padStart(2, "0")}`;
-            }
-            return "00:00";
-        }
-
-        function formatSQLDateToYMD(dateObj) {
-            const y = dateObj.getFullYear();
-            const m = String(dateObj.getMonth() + 1).padStart(2, "0");
-            const d = String(dateObj.getDate()).padStart(2, "0");
-            return `${y}-${m}-${d}`;
-        }
-
         if (conflictRental) {
-            if (!conflictRental.PickUpDate || !conflictRental.DropOffDate) {
-                console.log("Conflict rental missing date fields → skip overlap check");
-            } else {
+            const existingPick = combineSQLDateTime(
+                conflictRental.PickUpDate,
+                conflictRental.PickUpTime
+            );
 
-                const existingPick = buildDateObject(
-                    formatSQLDateToYMD(conflictRental.PickUpDate),
-                    safeTimeStr(conflictRental.PickUpTime)
-                );
+            const existingDrop = combineSQLDateTime(
+                conflictRental.DropOffDate,
+                conflictRental.DropOffTime
+            );
 
-                const existingDrop = buildDateObject(
-                    formatSQLDateToYMD(conflictRental.DropOffDate),
-                    safeTimeStr(conflictRental.DropOffTime)
-                );
-
-                const isOverlap =
-                    existingPick < dropObj &&
-                    existingDrop > pickObj;
-
-                if (isOverlap) {
-                    return {
-                        EC: 1,
-                        EM: "Car is not available at this time",
-                        DT: null
-                    };
-                }
+            if (isOverlapWithBuffer(pickObj, dropObj, existingPick, existingDrop, 2)) {
+                return {
+                    EC: 1,
+                    EM: "Car is not available at this time",
+                    DT: null
+                };
             }
         }
 

@@ -2,7 +2,7 @@ const { Op, fn, col } = require("sequelize");
 const { sequelize } = require("../config/Sequelize");
 const Car = require("../models/Car");
 const Rental = require("../models/Rental");
-const { combineDateTime, isOverlapWithBuffer } = require("../utils/datetimeUtils");
+const { extractTimeFromSQL, combineSQLDateTime, isOverlapWithBuffer } = require("../utils/datetimeUtils");
 const { ACTIVE_RENTAL_STATUSES } = require("../constants/rentalStatus");
 
 // ------------------------ Helpers ------------------------
@@ -45,15 +45,38 @@ const queryCars = async (where = {}, needAvailability = false) => {
     return await Car.findAll({ where, include });
 };
 
-const filterAvailableCarsFromList = (cars, start, end) => cars.filter((car) => {
-    for (const rental of car.Rentals || []) {
-        const existingStart = combineDateTime(rental.PickUpDate, rental.PickUpTime);
-        const existingEnd = combineDateTime(rental.DropOffDate, rental.DropOffTime);
-        if (!existingStart || !existingEnd) continue;
-        if (isOverlapWithBuffer(start, end, existingStart, existingEnd, 2)) return false;
-    }
-    return true;
-});
+const filterAvailableCarsFromList = (cars, start, end) =>
+    cars.filter((car) => {
+        for (const rental of car.Rentals || []) {
+
+            // SQL → DATETIME (NO SHIFT)
+            const existingStart = combineSQLDateTime(
+                rental.PickUpDate,
+                rental.PickUpTime
+            );
+
+            const existingEnd = combineSQLDateTime(
+                rental.DropOffDate,
+                rental.DropOffTime
+            );
+
+            if (!existingStart || !existingEnd) continue;
+
+            console.log("=== DEBUG DATETIME BEFORE COMPARE ===");
+            console.log("requestStart:", start, "| ISO:", start.toISOString());
+            console.log("requestEnd:", end, "| ISO:", requestEnd.toISOString());
+
+            console.log("existingStart COMBINED:", existingStart, "| ISO:", existingStart?.toISOString());
+            console.log("existingEnd COMBINED:", existingEnd, "| ISO:", existingEnd?.toISOString());
+            console.log("=======================================");
+
+
+            // Overlap check giữ nguyên logic
+            if (isOverlapWithBuffer(start, end, existingStart, existingEnd, 2))
+                return false;
+        }
+        return true;
+    });
 
 // GET ALL CARS
 const fetchAllCars = async () => {
@@ -91,8 +114,9 @@ const fetchAvailableCarsByPickDrop = async (params) => {
         const now = new Date();
 
         // ----- Convert to datetime -----
-        const newStart = new Date(`${pickupDate}T${pickupTime}:00`);
-        const newEnd = new Date(`${dropoffDate}T${dropoffTime}:00`);
+        const newStart = buildDateObject(pickupDate, pickupTime);
+        const newEnd = buildDateObject(dropoffDate, dropoffTime);
+
 
         console.log(newStart, newEnd);
 
@@ -229,8 +253,9 @@ const fetchCarsByFilters = async (params) => {
         let newStart, newEnd;
         if (needAvailability) {
             const now = new Date();
-            newStart = new Date(`${pickupDate}T${pickupTime}:00`);
-            newEnd = new Date(`${dropoffDate}T${dropoffTime}:00`);
+            newStart = buildDateObject(pickupDate, pickupTime);
+            newEnd = buildDateObject(dropoffDate, dropoffTime);
+
 
             if (newStart < now) {
                 return { EC: 7, EM: 'Pick-up time cannot be in the past', DT: null };
@@ -282,7 +307,7 @@ const fetchCarById = async (carId) => {
     } catch (error) {
         console.log(">>> fetchCarById error:", error);
         return {
-            EC: -1, 
+            EC: -1,
             EM: "Internal server error",
             DT: null
         };
