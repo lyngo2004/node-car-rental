@@ -64,7 +64,7 @@ const filterAvailableCarsFromList = (cars, start, end) =>
 
             console.log("=== DEBUG DATETIME BEFORE COMPARE ===");
             console.log("requestStart:", start, "| ISO:", start.toISOString());
-            console.log("requestEnd:", end, "| ISO:", requestEnd.toISOString());
+            console.log("requestEnd:", end, "| ISO:", end.toISOString());
 
             console.log("existingStart COMBINED:", existingStart, "| ISO:", existingStart?.toISOString());
             console.log("existingEnd COMBINED:", existingEnd, "| ISO:", existingEnd?.toISOString());
