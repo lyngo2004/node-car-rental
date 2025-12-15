@@ -1,6 +1,7 @@
 // src/services/userService.js
-const User = require("../models/UserAccount");
+const UserAccount = require("../models/UserAccount");
 const Customer = require("../models/Customer");
+const Employee = require("../models/Employee")
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { Op } = require("sequelize");
@@ -13,7 +14,7 @@ const createUserService = async (username, email, password) => {
 
   try {
     // 1. Check username duplicated
-    const existingUser = await User.findOne({
+    const existingUser = await UserAccount.findOne({
       where: { Username: username },
       transaction: t,
     });
@@ -42,7 +43,7 @@ const createUserService = async (username, email, password) => {
     const nextUserId = `${prefixUser}${String(nextUserNumber).padStart(3, "0")}`;
 
     // 4. Create USER ACCOUNT
-    const newUser = await User.create(
+    const newUser = await UserAccount.create(
       {
         UserId: nextUserId,
         Username: username,
@@ -102,7 +103,7 @@ const createUserService = async (username, email, password) => {
 const loginService = async (username, password) => {
   try {
     // 1. Find user by username
-    const user = await User.findOne({ where: { Username: username } });
+    const user = await UserAccount.findOne({ where: { Username: username } });
 
     if (!user) {
       return { EC: 1, EM: "Username/password not found", DT: "" };
@@ -144,7 +145,110 @@ const loginService = async (username, password) => {
   }
 };
 
+// CREATE ADMIN SERVICE
+
+const createAdminWithEmployeeService = async ({
+  username,
+  email,
+  password,
+  fullName,
+  phone,
+  position,
+  hireDate
+}) => {
+  const t = await sequelize.transaction();
+
+  try {
+    // 1. Check username duplicated
+    const existingUser = await UserAccount.findOne({
+      where: { Username: username },
+      transaction: t,
+    });
+
+    if (existingUser) {
+      await t.rollback();
+      return { EC: 1, EM: "Username already exists", DT: null };
+    }
+
+    // 2. Hash password
+    const hashPassword = await bcrypt.hash(password, saltRounds);
+
+    // 3. Generate UserId: UA###
+    const prefixUser = "UA";
+    const latestUser = await UserAccount.findOne({
+      where: { UserId: { [Op.like]: `${prefixUser}%` } },
+      order: [["UserId", "DESC"]],
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+
+    const nextUserNumber = latestUser
+      ? parseInt(latestUser.UserId.replace(prefixUser, ""), 10) + 1
+      : 1;
+
+    const nextUserId = `${prefixUser}${String(nextUserNumber).padStart(3, "0")}`;
+
+    // 4. Create USER ACCOUNT (ADMIN)
+    await UserAccount.create(
+      {
+        UserId: nextUserId,
+        Username: username,
+        Email: email,
+        HashPassword: hashPassword,
+        Role: "Employee",
+        IsActive: 1,
+      },
+      { transaction: t }
+    );
+
+    // 5. Generate EmployeeId: E###
+    const prefixEmp = "E";
+    const latestEmp = await Employee.findOne({
+      where: { EmployeeId: { [Op.like]: `${prefixEmp}%` } },
+      order: [["EmployeeId", "DESC"]],
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+
+    const nextEmpNumber = latestEmp
+      ? parseInt(latestEmp.EmployeeId.replace(prefixEmp, ""), 10) + 1
+      : 1;
+
+    const nextEmployeeId = `${prefixEmp}${String(nextEmpNumber).padStart(3, "0")}`;
+
+    // 6. Create EMPLOYEE record
+    await Employee.create(
+      {
+        EmployeeId: nextEmployeeId,
+        UserId: nextUserId,
+        FullName: fullName,
+        Phone: phone,
+        Email: email,
+        Position: position || "Employee",
+        HireDate: hireDate || new Date(),
+      },
+      { transaction: t }
+    );
+
+    await t.commit();
+
+    return {
+      EC: 0,
+      EM: "Admin account created successfully",
+      DT: {
+        UserId: nextUserId,
+        EmployeeId: nextEmployeeId,
+      },
+    };
+  } catch (error) {
+    await t.rollback();
+    console.error("Error in createAdminWithEmployeeService:", error);
+    return { EC: -1, EM: "Server error", DT: null };
+  }
+};
+
 module.exports = {
   createUserService,
   loginService,
+  createAdminWithEmployeeService,
 };

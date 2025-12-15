@@ -1,4 +1,4 @@
-const { checkoutRentalService } = require("../services/rentalService");
+const { checkoutRentalService } = require("../../services/rentalService");
 
 const checkoutRentalController = async (req, res) => {
   const userId = req.user?.userId; // từ JWT middleware

@@ -10,7 +10,6 @@ extractTimeFromSQL = (dateObj) => {
 }
 
 combineSQLDateTime = (sqlDateObj, sqlTimeObj) => {
-  // tạo date-time theo local time, KHÔNG QUA UTC
   const y = sqlDateObj.getUTCFullYear();
   const m = sqlDateObj.getUTCMonth();
   const d = sqlDateObj.getUTCDate();

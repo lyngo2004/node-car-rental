@@ -1,5 +1,5 @@
 // controllers/customerController.js
-const { getCurrentCustomerService } = require("../services/customerService");
+const { getCurrentCustomerService } = require("../../services/customerService");
 
 
 const getCurrentCustomerController = async (req, res) => {
