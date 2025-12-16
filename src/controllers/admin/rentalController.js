@@ -8,7 +8,7 @@ const {
     cancelRentalService,
 } = require("../../services/rentalService");
 
-const fetchAllRentalsController = async (req, res) => {
+const getAllRentalsController = async (req, res) => {
     const { status } = req.query;
 
     // Không có status → get all
@@ -22,12 +22,12 @@ const fetchAllRentalsController = async (req, res) => {
     return res.status(200).json(data);
 };
 
-const fetchRentalSummaryController = async (req, res) => {
+const getRentalSummaryController = async (req, res) => {
     const data = await fetchRentalSummaryService();
     return res.status(200).json(data);
 };
 
-const fetchRentalByIdController = async (req, res) => {
+const getRentalByIdController = async (req, res) => {
   const { id } = req.params;
 
   if (!id) {
@@ -91,9 +91,9 @@ const cancelRentalController = async (req, res) => {
 };
 
 module.exports = {
-    fetchAllRentalsController,
-    fetchRentalSummaryController,
-    fetchRentalByIdController,
+    getAllRentalsController,
+    getRentalSummaryController,
+    getRentalByIdController,
     approveRentalController,
     rejectRentalController,
     cancelRentalController

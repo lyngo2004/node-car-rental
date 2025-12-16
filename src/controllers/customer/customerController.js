@@ -1,7 +1,6 @@
 // controllers/customerController.js
 const { getCurrentCustomerService } = require("../../services/customerService");
 
-
 const getCurrentCustomerController = async (req, res) => {
   const userId = req.user.userId;
   const data = await getCurrentCustomerService(userId);

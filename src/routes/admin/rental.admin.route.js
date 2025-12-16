@@ -1,8 +1,8 @@
 const express = require('express');
 const {
-    fetchAllRentalsController,
-    fetchRentalSummaryController,
-    fetchRentalByIdController,
+    getAllRentalsController,
+    getRentalSummaryController,
+    getRentalByIdController,
     approveRentalController,
     rejectRentalController,
     cancelRentalController,
@@ -10,10 +10,10 @@ const {
 
 const router = express.Router();
 
-router.get("/", fetchAllRentalsController);
-router.get("/summary", fetchRentalSummaryController);
+router.get("/", getAllRentalsController);
+router.get("/summary", getRentalSummaryController);
 
-router.get("/:id", fetchRentalByIdController);
+router.get("/:id", getRentalByIdController);
 router.patch("/:id/approve", approveRentalController);
 router.patch("/:id/reject", rejectRentalController);
 router.patch("/:id/cancel", cancelRentalController);
