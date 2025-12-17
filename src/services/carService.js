@@ -1,9 +1,11 @@
 const { Op, fn, col } = require("sequelize");
 const { sequelize } = require("../config/Sequelize");
+const cloudinary = require("../config/cloudinary");
 const Car = require("../models/Car");
 const Rental = require("../models/Rental");
-const { combineSQLDateTime, isOverlapWithBuffer } = require("../utils/datetimeUtils");
+const { combineSQLDateTime, isOverlapWithBuffer, buildDateObject } = require("../utils/datetimeUtils");
 const { ACTIVE_RENTAL_STATUSES } = require("../constants/rentalStatus");
+const { uploadCarImage, deleteCarImage } = require("./cloudinaryService")
 
 // ------------------------ Helpers ------------------------
 const parseMultiParam = (val) => {
@@ -314,11 +316,252 @@ const fetchCarById = async (carId) => {
     }
 };
 
+const fetchAllAdminCarsService = async () => {
+    const cars = await Car.findAll({
+        attributes: [
+            "CarId",
+            "LicensePlate",
+            "Brand",
+            "Model",
+            "CarType",
+            "Capacity",
+            "PricePerDay",
+            "CarStatus",
+            "ImagePath"
+        ],
+        order: [["CarId", "ASC"]],
+    });
+
+    return { EC: 0, EM: "Success", DT: cars };
+};
+
+const fetchAdminCarByIdService = async (carId) => {
+    const car = await Car.findByPk(carId);
+
+    if (!car) {
+        return { EC: 1, EM: "Car not found", DT: null };
+    }
+
+    return { EC: 0, EM: "Success", DT: car };
+};
+
+const createAdminCarService = async (payload, file) => {
+    let t;
+    let uploadedImage = null;
+
+    try {
+        const {
+            LicensePlate,
+            Brand,
+            Model,
+            ManufactureYear,
+            PricePerDay,
+            CarType,
+            Capacity,
+            Mileage,
+            Color,
+            Description,
+            CarStatus,
+        } = payload;
+
+        // 1. Validate required fields
+        if (
+            !LicensePlate ||
+            !Brand ||
+            !Model ||
+            !ManufactureYear ||
+            !PricePerDay ||
+            !CarType ||
+            !Capacity
+        ) {
+            return { EC: 1, EM: "Missing required fields", DT: null };
+        }
+
+        // 2. Check duplicate license plate
+        const existedCar = await Car.findOne({ where: { LicensePlate } });
+        if (existedCar) {
+            return { EC: 1, EM: "License plate already exists", DT: null };
+        }
+
+        // 3. Upload image (if any)
+        const imageUrl = file?.path || null;
+        const publicImageId = file?.filename || null;
+
+
+        // 4. Transaction
+        t = await sequelize.transaction();
+
+        // 5. Generate CarId
+        const prefix = "CAR";
+        const latestCar = await Car.findOne({
+            where: { CarId: { [Op.like]: `${prefix}%` } },
+            order: [["CarId", "DESC"]],
+            transaction: t,
+            lock: t.LOCK.UPDATE,
+        });
+
+        const nextNumber = latestCar
+            ? parseInt(latestCar.CarId.replace(prefix, ""), 10) + 1
+            : 1;
+
+        const newCarId = `${prefix}${String(nextNumber).padStart(3, "0")}`;
+
+        // 6. Create car
+        const newCar = await Car.create(
+            {
+                CarId: newCarId,
+                LicensePlate,
+                Brand,
+                Model,
+                ManufactureYear,
+                CarStatus: CarStatus || "available",
+                PricePerDay,
+                Mileage: Mileage || 0,
+                CarType,
+                Capacity,
+                Color,
+                Description,
+                ImagePath: imageUrl,
+                PublicImageId: publicImageId,
+            },
+            { transaction: t }
+        );
+
+        await t.commit();
+
+        return { EC: 0, EM: "Car created successfully", DT: newCar };
+    } catch (error) {
+        if (t && !t.finished) await t.rollback();
+
+        console.error("createAdminCarService error:", error);
+        return { EC: -1, EM: "Internal server error", DT: null };
+    }
+};
+
+const updateAdminCarService = async (carId, payload, file) => {
+  let t;
+  let newImagePublicId = null;
+
+  try {
+    // 1. Find car
+    const car = await Car.findByPk(carId);
+
+    if (!car) {
+      return { EC: 1, EM: "Car not found", DT: null };
+    }
+
+    // 2. Prepare updated fields
+    const updateData = {
+      LicensePlate: payload.LicensePlate ?? car.LicensePlate,
+      Brand: payload.Brand ?? car.Brand,
+      Model: payload.Model ?? car.Model,
+      ManufactureYear: payload.ManufactureYear ?? car.ManufactureYear,
+      PricePerDay: payload.PricePerDay ?? car.PricePerDay,
+      CarType: payload.CarType ?? car.CarType,
+      Capacity: payload.Capacity ?? car.Capacity,
+      Mileage: payload.Mileage ?? car.Mileage,
+      Color: payload.Color ?? car.Color,
+      Description: payload.Description ?? car.Description,
+      CarStatus: payload.CarStatus ?? car.CarStatus,
+    };
+
+    // 3. Nếu có ảnh mới (đã upload sẵn bởi uploadCloud)
+    if (file) {
+      updateData.ImagePath = file.path;       // secure_url
+      updateData.PublicImageId = file.filename; // public_id
+      newImagePublicId = file.filename;
+    }
+
+    // 4. Transaction
+    t = await sequelize.transaction();
+
+    const oldPublicImageId = car.PublicImageId;
+
+    await car.update(updateData, { transaction: t });
+
+    await t.commit();
+
+    // 5. Delete old image AFTER commit
+    if (file && oldPublicImageId) {
+      await deleteCarImage(oldPublicImageId);
+    }
+
+    return {
+      EC: 0,
+      EM: "Car updated successfully",
+      DT: car,
+    };
+  } catch (error) {
+    if (t && !t.finished) await t.rollback();
+
+    // rollback new image if DB failed
+    if (newImagePublicId) {
+      await deleteCarImage(newImagePublicId);
+    }
+
+    console.error("updateAdminCarService error:", error);
+    return { EC: -1, EM: "Internal server error", DT: null };
+  }
+};
+
+const deleteAdminCarService = async (carId) => {
+  let t;
+
+  try {
+    const car = await Car.findByPk(carId);
+
+    if (!car) {
+      return { EC: 1, EM: "Car not found", DT: null };
+    }
+
+    // 1. Check rental tồn tại
+    const rentalCount = await Rental.count({
+      where: { CarId: carId },
+    });
+
+    if (rentalCount > 0) {
+      return {
+        EC: 1,
+        EM: "Cannot delete car with rental history",
+        DT: null,
+      };
+    }
+
+    t = await sequelize.transaction();
+
+    // 2. Delete car
+    await car.destroy({ transaction: t });
+
+    await t.commit();
+
+    // 3. Delete image Cloudinary
+    if (car.PublicImageId) {
+      await deleteCarImage(car.PublicImageId);
+    }
+
+    return {
+      EC: 0,
+      EM: "Car deleted successfully",
+      DT: null,
+    };
+  } catch (error) {
+    if (t && !t.finished) await t.rollback();
+
+    console.error("deleteAdminCarService error:", error);
+    return { EC: -1, EM: "Internal server error", DT: null };
+  }
+};
+
 
 module.exports = {
     fetchAllCars,
     fetchAvailableCarsByPickDrop,
     fetchFilterOptions,
     fetchCarsByFilters,
-    fetchCarById
+    fetchCarById,
+    fetchAllAdminCarsService,
+    fetchAdminCarByIdService,
+    createAdminCarService,
+    updateAdminCarService,
+    deleteAdminCarService
 };

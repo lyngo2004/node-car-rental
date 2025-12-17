@@ -4,7 +4,7 @@ const {
   fetchFilterOptions,
   fetchCarsByFilters,
   fetchCarById
-} = require("../services/carService");
+} = require("../../services/carService");
 
 const getAllCarsController = async (req, res) => {
   const data = await fetchAllCars();

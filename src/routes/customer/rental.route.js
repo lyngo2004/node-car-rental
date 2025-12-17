@@ -1,5 +1,5 @@
 const express = require('express');
-const { checkoutRentalController } = require('../controllers/rentalController');
+const { checkoutRentalController, getRentalByIdController } = require('../../controllers/customer/rentalController');
 
 const router = express.Router();
 
@@ -136,5 +136,6 @@ const router = express.Router();
  *         $ref: "#/components/responses/ServerError"
  */
 router.post("/checkout", checkoutRentalController);
+router.get("/:id", getRentalByIdController)
 
 module.exports = router;
