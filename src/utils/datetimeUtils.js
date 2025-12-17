@@ -28,7 +28,7 @@ buildDateObject = (dateVal, timeVal) => {
   const [year, month, day] = dateVal.split("-").map(Number);
   const [h, m] = timeVal.split(":").map(Number);
 
-  // tạo local datetime, KHÔNG bị UTC shift
+  // tạo local datetime
   return new Date(Date.UTC(year, month - 1, day, h, m, 0));
 };
 

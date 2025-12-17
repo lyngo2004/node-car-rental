@@ -3,7 +3,7 @@ const { sequelize } = require("../config/Sequelize");
 const cloudinary = require("../config/cloudinary");
 const Car = require("../models/Car");
 const Rental = require("../models/Rental");
-const { combineSQLDateTime, isOverlapWithBuffer } = require("../utils/datetimeUtils");
+const { combineSQLDateTime, isOverlapWithBuffer, buildDateObject } = require("../utils/datetimeUtils");
 const { ACTIVE_RENTAL_STATUSES } = require("../constants/rentalStatus");
 const { uploadCarImage, deleteCarImage } = require("./cloudinaryService")
 

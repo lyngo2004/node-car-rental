@@ -3,6 +3,7 @@ const {
     getAllRentalsController,
     getRentalSummaryController,
     getRentalByIdController,
+    getRentalsByStatusController,
     approveRentalController,
     rejectRentalController,
     cancelRentalController,
@@ -14,6 +15,8 @@ router.get("/", getAllRentalsController);
 router.get("/summary", getRentalSummaryController);
 
 router.get("/:id", getRentalByIdController);
+router.get("/status/:status", getRentalsByStatusController);
+
 router.patch("/:id/approve", approveRentalController);
 router.patch("/:id/reject", rejectRentalController);
 router.patch("/:id/cancel", cancelRentalController);

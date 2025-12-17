@@ -1,4 +1,5 @@
 const {
+    extractTimeFromSQL,
     combineSQLDateTime,
     buildDateObject,
     isOverlapWithBuffer
@@ -93,7 +94,7 @@ const checkoutRentalService = async (userId, payload) => {
         }
 
         // Pickup phải sau thời điểm hiện tại
-        const now = new Date.now();
+        const now = new Date();
         if (pickObj <= now) {
             return {
                 EC: 1,
@@ -273,7 +274,7 @@ const checkoutRentalService = async (userId, payload) => {
                         DropOffTime: dropTimeForDB,
                         RentalStatus: "pending",
                         TotalAmount: total,
-                        IssuedDate: new Date().toISOString().slice(0, 19).replace("T", " ")
+                        IssuedDate: new Date().toLocaleString("sv-SE", { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }).replace("T", " ")
                     },
                     transaction: t,
                 }
@@ -317,22 +318,78 @@ const checkoutRentalService = async (userId, payload) => {
 
 };
 
+const normalizeRentalForList = (rental) => {
+    const derivedStatus = deriveRentalStatus(rental);
+
+    return {
+        RentalId: rental.RentalId,
+        RentalStatus: rental.RentalStatus,
+        derivedStatus,
+
+        TotalAmount: rental.TotalAmount,
+
+        IssuedDate: rental.IssuedDate
+            ? rental.IssuedDate.toISOString().slice(0, 19).replace("T", " ")
+            : null,
+
+        // ---- LOCATION ----
+        PickUpLocation: rental.PickUpLocation,
+        DropOffLocation: rental.DropOffLocation,
+
+        // ---- DATE & TIME (FE FRIENDLY) ----
+        pickupDate: rental.PickUpDate.toISOString().slice(0, 10),
+        pickupTime: extractTimeFromSQL(rental.PickUpTime),
+        dropoffDate: rental.DropOffDate.toISOString().slice(0, 10),
+        dropoffTime: extractTimeFromSQL(rental.DropOffTime),
+
+        customer: rental.Customer
+            ? {
+                  CustomerId: rental.Customer.CustomerId,
+                  FullName: rental.Customer.FullName,
+                  Email: rental.Customer.Email,
+                  Phone: rental.Customer.Phone,
+              }
+            : null,
+
+        car: rental.Car
+            ? {
+                  CarId: rental.Car.CarId,
+                  Brand: rental.Car.Brand,
+                  Model: rental.Car.Model,
+              }
+            : null,
+    };
+};
+
 const fetchAllRentalsService = async () => {
     try {
-        const result = await Rental.findAll();
+        const rentals = await Rental.findAll({
+            include: [
+                {
+                    model: Customer,
+                    attributes: ["CustomerId", "FullName", "Email", "Phone"],
+                },
+                {
+                    model: Car,
+                    attributes: ["CarId", "Brand", "Model"],
+                },
+            ],
+            order: [["IssuedDate", "DESC"]],
+        });
+
+        const normalized = rentals.map(normalizeRentalForList);
 
         return {
             EC: 0,
             EM: "Success",
-            DT: result
+            DT: normalized,
         };
-
     } catch (error) {
-        console.log(">>> fetchAllCars error:", error);
+        console.error("fetchAllRentalsService error:", error);
         return {
             EC: -1,
             EM: "Internal server error",
-            DT: null
+            DT: null,
         };
     }
 };
@@ -341,20 +398,44 @@ const fetchRentalsByStatusService = async (status) => {
     try {
         const s = (status || "").toLowerCase();
 
-        // Status lưu DB
+        // ================= DB STATUS =================
         if (ACTIVE_RENTAL_STATUSES.includes(s)) {
-            const result = await Rental.findAll({
+            const rentals = await Rental.findAll({
                 where: { RentalStatus: s },
+                include: [
+                    {
+                        model: Customer,
+                        attributes: ["CustomerId", "FullName", "Email", "Phone"],
+                    },
+                    {
+                        model: Car,
+                        attributes: ["CarId", "Brand", "Model"],
+                    },
+                ],
                 order: [["IssuedDate", "DESC"]],
             });
 
-            return { EC: 0, EM: "Success", DT: result };
+            return {
+                EC: 0,
+                EM: "Success",
+                DT: rentals.map(normalizeRentalForList),
+            };
         }
 
-        // Status suy diễn từ thời gian
+        // ================= DERIVED STATUS =================
         if (DERIVED_RENTAL_STATUSES.includes(s)) {
             const approvedRentals = await Rental.findAll({
                 where: { RentalStatus: "approved" },
+                include: [
+                    {
+                        model: Customer,
+                        attributes: ["CustomerId", "FullName", "Email", "Phone"],
+                    },
+                    {
+                        model: Car,
+                        attributes: ["CarId", "Brand", "Model"],
+                    },
+                ],
                 order: [["IssuedDate", "DESC"]],
             });
 
@@ -375,11 +456,11 @@ const fetchRentalsByStatusService = async (status) => {
             return {
                 EC: 0,
                 EM: "Success",
-                DT: filtered
+                DT: filtered.map(normalizeRentalForList),
             };
         }
-        return { EC: 1, EM: "Invalid rental status", DT: null };
 
+        return { EC: 1, EM: "Invalid rental status", DT: null };
     } catch (error) {
         console.error("fetchRentalsByStatusService error:", error);
         return { EC: -1, EM: "Internal server error", DT: null };
@@ -484,256 +565,285 @@ const getAvailableActions = (rental) => {
 };
 
 const fetchRentalByIdService = async (rentalId) => {
-  try {
-    const rental = await Rental.findOne({
-      where: { RentalId: rentalId },
-      include: [
-        {
-          model: Customer,
-          attributes: ["CustomerId", "FullName", "Email", "Phone", "DriverLicense"],
-        },
-        {
-          model: Payment,
-          attributes: [
-            "PaymentId",
-            "PaymentMethod",
-            "PaymentAmount",
-          ],
-        },
-        {
-          model: Car,
-          attributes: ["CarId", "Brand", "Model", "PricePerDay", "ImagePath"],
-        },
-      ],
-    });
+    try {
+        const rental = await Rental.findOne({
+            where: { RentalId: rentalId },
+            include: [
+                {
+                    model: Customer,
+                    attributes: ["CustomerId", "FullName", "Email", "Phone", "DriverLicense"],
+                },
+                {
+                    model: Payment,
+                    attributes: ["PaymentId", "PaymentMethod", "PaymentAmount"],
+                },
+                {
+                    model: Car,
+                    attributes: ["CarId", "Brand", "Model", "PricePerDay", "ImagePath"],
+                },
+            ],
+        });
 
-    if (!rental) {
-      return { EC: 1, EM: "Rental not found", DT: null };
+        if (!rental) {
+            return { EC: 1, EM: "Rental not found", DT: null };
+        }
+
+        // ===== NORMALIZE PAYMENT =====
+        const payment = rental.Payments?.[0] || null;
+
+        // ===== NORMALIZE DATETIME =====
+        const pickupDateTime = combineSQLDateTime(
+            rental.PickUpDate,
+            rental.PickUpTime
+        );
+
+        const dropoffDateTime = combineSQLDateTime(
+            rental.DropOffDate,
+            rental.DropOffTime
+        );
+
+        const derivedStatus = deriveRentalStatus(rental);
+        const availableActions = getAvailableActions(rental);
+
+        return {
+            EC: 0,
+            EM: "Success",
+            DT: {
+                rental: {
+                    RentalId: rental.RentalId,
+                    RentalStatus: rental.RentalStatus,
+                    TotalAmount: rental.TotalAmount,
+                    IssuedDate: rental.IssuedDate,
+
+                    // ---- LOCATION ----
+                    PickUpLocation: rental.PickUpLocation,
+                    DropOffLocation: rental.DropOffLocation,
+
+                    // ---- DATE & TIME (FE FRIENDLY) ----
+                    pickupDate: rental.PickUpDate.toISOString().slice(0, 10),
+                    pickupTime: extractTimeFromSQL(rental.PickUpTime),
+                    dropoffDate: rental.DropOffDate.toISOString().slice(0, 10),
+                    dropoffTime: extractTimeFromSQL(rental.DropOffTime),
+
+                    // ---- DATETIME (FOR LOGIC / ADMIN) ----
+                    pickupDateTime,
+                    dropoffDateTime,
+
+                    derivedStatus,
+                },
+
+                customer: rental.Customer,
+                car: rental.Car,
+                payment,
+                availableActions,
+            },
+        };
+    } catch (error) {
+        console.error("fetchRentalByIdService error:", error);
+        return { EC: -1, EM: "Internal server error", DT: null };
     }
-
-    const derivedStatus = deriveRentalStatus(rental);
-    const availableActions = getAvailableActions(rental);
-
-    return {
-      EC: 0,
-      EM: "Success",
-      DT: {
-        rental: {
-          ...rental.toJSON(),
-          derivedStatus,
-        },
-        customer: rental.Customer,
-        payment: rental.Payment,
-        car: rental.Car,
-        availableActions,
-      },
-    };
-  } catch (error) {
-    console.error("fetchRentalByIdService error:", error);
-    return { EC: -1, EM: "Internal server error", DT: null };
-  }
 };
 
 //--- Helper: map User and Employee ---
 const getEmployeeIdByUserId = async (userId, transaction) => {
-  const employee = await Employee.findOne({
-    where: { UserId: userId },
-    transaction,
-  });
-  return employee ? employee.EmployeeId : null;
+    const employee = await Employee.findOne({
+        where: { UserId: userId },
+        transaction,
+    });
+    return employee ? employee.EmployeeId : null;
 };
 
 const approveRentalService = async (rentalId, adminUserId) => {
-  let t;
-  try {
-    t = await sequelize.transaction({
-      isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED,
-    });
+    let t;
+    try {
+        t = await sequelize.transaction({
+            isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED,
+        });
 
-    const employeeId = await getEmployeeIdByUserId(adminUserId, t);
-    if (!employeeId) {
-      await t.rollback();
-      return { EC: 1, EM: "Employee not found", DT: null };
+        const employeeId = await getEmployeeIdByUserId(adminUserId, t);
+        if (!employeeId) {
+            await t.rollback();
+            return { EC: 1, EM: "Employee not found", DT: null };
+        }
+
+        const rental = await Rental.findOne({
+            where: { RentalId: rentalId },
+            transaction: t,
+            lock: t.LOCK.UPDATE,
+        });
+
+        if (!rental) {
+            await t.rollback();
+            return { EC: 1, EM: "Rental not found", DT: null };
+        }
+
+        if (rental.RentalStatus !== "pending") {
+            await t.rollback();
+            return {
+                EC: 1,
+                EM: `Cannot approve rental in status '${rental.RentalStatus}'`,
+                DT: null,
+            };
+        }
+
+        const pick = combineSQLDateTime(
+            rental.PickUpDate,
+            rental.PickUpTime
+        );
+        const drop = combineSQLDateTime(
+            rental.DropOffDate,
+            rental.DropOffTime
+        );
+
+        const existing = await Rental.findAll({
+            where: {
+                CarId: rental.CarId,
+                RentalStatus: "approved",
+                RentalId: { [Op.ne]: rental.RentalId },
+            },
+            transaction: t,
+            lock: t.LOCK.UPDATE,
+        });
+
+        for (const r of existing) {
+            const ePick = combineSQLDateTime(r.PickUpDate, r.PickUpTime);
+            const eDrop = combineSQLDateTime(r.DropOffDate, r.DropOffTime);
+
+            if (isOverlapWithBuffer(pick, drop, ePick, eDrop, 2)) {
+                await t.rollback();
+                return {
+                    EC: 1,
+                    EM: "Time overlaps with an existing approved rental",
+                    DT: null,
+                };
+            }
+        }
+
+        await rental.update(
+            {
+                RentalStatus: "approved",
+                ProcessedBy: employeeId,
+            },
+            { transaction: t }
+        );
+
+        await t.commit();
+        return { EC: 0, EM: "Rental approved", DT: { RentalId: rentalId } };
+    } catch (error) {
+        if (t && !t.finished) await t.rollback();
+        console.error("approveRentalService error:", error);
+        return { EC: -1, EM: "Internal server error", DT: null };
     }
-
-    const rental = await Rental.findOne({
-      where: { RentalId: rentalId },
-      transaction: t,
-      lock: t.LOCK.UPDATE,
-    });
-
-    if (!rental) {
-      await t.rollback();
-      return { EC: 1, EM: "Rental not found", DT: null };
-    }
-
-    if (rental.RentalStatus !== "pending") {
-      await t.rollback();
-      return {
-        EC: 1,
-        EM: `Cannot approve rental in status '${rental.RentalStatus}'`,
-        DT: null,
-      };
-    }
-
-    const pick = combineSQLDateTime(
-      rental.PickUpDate,
-      rental.PickUpTime
-    );
-    const drop = combineSQLDateTime(
-      rental.DropOffDate,
-      rental.DropOffTime
-    );
-
-    const existing = await Rental.findAll({
-      where: {
-        CarId: rental.CarId,
-        RentalStatus: "approved",
-        RentalId: { [Op.ne]: rental.RentalId },
-      },
-      transaction: t,
-      lock: t.LOCK.UPDATE,
-    });
-
-    for (const r of existing) {
-      const ePick = combineSQLDateTime(r.PickUpDate, r.PickUpTime);
-      const eDrop = combineSQLDateTime(r.DropOffDate, r.DropOffTime);
-
-      if (isOverlapWithBuffer(pick, drop, ePick, eDrop, 2)) {
-        await t.rollback();
-        return {
-          EC: 1,
-          EM: "Time overlaps with an existing approved rental",
-          DT: null,
-        };
-      }
-    }
-
-    await rental.update(
-      {
-        RentalStatus: "approved",
-        ProcessedBy: employeeId,
-      },
-      { transaction: t }
-    );
-
-    await t.commit();
-    return { EC: 0, EM: "Rental approved", DT: { RentalId: rentalId } };
-  } catch (error) {
-    if (t && !t.finished) await t.rollback();
-    console.error("approveRentalService error:", error);
-    return { EC: -1, EM: "Internal server error", DT: null };
-  }
 };
 
 const rejectRentalService = async (rentalId, adminUserId) => {
-  let t;
-  try {
-    t = await sequelize.transaction();
+    let t;
+    try {
+        t = await sequelize.transaction();
 
-    const employeeId = await getEmployeeIdByUserId(adminUserId, t);
-    if (!employeeId) {
-      await t.rollback();
-      return { EC: 1, EM: "Employee not found", DT: null };
+        const employeeId = await getEmployeeIdByUserId(adminUserId, t);
+        if (!employeeId) {
+            await t.rollback();
+            return { EC: 1, EM: "Employee not found", DT: null };
+        }
+
+        const rental = await Rental.findOne({
+            where: { RentalId: rentalId },
+            transaction: t,
+            lock: t.LOCK.UPDATE,
+        });
+
+        if (!rental) {
+            await t.rollback();
+            return { EC: 1, EM: "Rental not found", DT: null };
+        }
+
+        if (rental.RentalStatus !== "pending") {
+            await t.rollback();
+            return {
+                EC: 1,
+                EM: `Cannot reject rental in status '${rental.RentalStatus}'`,
+                DT: null,
+            };
+        }
+
+        await rental.update(
+            {
+                RentalStatus: "rejected",
+                ProcessedBy: employeeId,
+            },
+            { transaction: t }
+        );
+
+        await t.commit();
+        return { EC: 0, EM: "Rental rejected", DT: { RentalId: rentalId } };
+    } catch (error) {
+        if (t && !t.finished) await t.rollback();
+        console.error("rejectRentalService error:", error);
+        return { EC: -1, EM: "Internal server error", DT: null };
     }
-
-    const rental = await Rental.findOne({
-      where: { RentalId: rentalId },
-      transaction: t,
-      lock: t.LOCK.UPDATE,
-    });
-
-    if (!rental) {
-      await t.rollback();
-      return { EC: 1, EM: "Rental not found", DT: null };
-    }
-
-    if (rental.RentalStatus !== "pending") {
-      await t.rollback();
-      return {
-        EC: 1,
-        EM: `Cannot reject rental in status '${rental.RentalStatus}'`,
-        DT: null,
-      };
-    }
-
-    await rental.update(
-      {
-        RentalStatus: "rejected",
-        ProcessedBy: employeeId,
-      },
-      { transaction: t }
-    );
-
-    await t.commit();
-    return { EC: 0, EM: "Rental rejected", DT: { RentalId: rentalId } };
-  } catch (error) {
-    if (t && !t.finished) await t.rollback();
-    console.error("rejectRentalService error:", error);
-    return { EC: -1, EM: "Internal server error", DT: null };
-  }
 };
 
 const cancelRentalService = async (rentalId, adminUserId) => {
-  let t;
-  try {
-    t = await sequelize.transaction();
+    let t;
+    try {
+        t = await sequelize.transaction();
 
-    const employeeId = await getEmployeeIdByUserId(adminUserId, t);
-    if (!employeeId) {
-      await t.rollback();
-      return { EC: 1, EM: "Employee not found", DT: null };
+        const employeeId = await getEmployeeIdByUserId(adminUserId, t);
+        if (!employeeId) {
+            await t.rollback();
+            return { EC: 1, EM: "Employee not found", DT: null };
+        }
+
+        const rental = await Rental.findOne({
+            where: { RentalId: rentalId },
+            transaction: t,
+            lock: t.LOCK.UPDATE,
+        });
+
+        if (!rental) {
+            await t.rollback();
+            return { EC: 1, EM: "Rental not found", DT: null };
+        }
+
+        if (rental.RentalStatus !== "approved") {
+            await t.rollback();
+            return {
+                EC: 1,
+                EM: `Cannot cancel rental in status '${rental.RentalStatus}'`,
+                DT: null,
+            };
+        }
+
+        const pick = combineSQLDateTime(
+            rental.PickUpDate,
+            rental.PickUpTime
+        );
+
+        if (Date.now() >= pick.getTime()) {
+            await t.rollback();
+            return {
+                EC: 1,
+                EM: "Cannot cancel rental after it has started",
+                DT: null,
+            };
+        }
+
+        await rental.update(
+            {
+                RentalStatus: "cancelled",
+                ProcessedBy: employeeId,
+            },
+            { transaction: t }
+        );
+
+        await t.commit();
+        return { EC: 0, EM: "Rental cancelled", DT: { RentalId: rentalId } };
+    } catch (error) {
+        if (t && !t.finished) await t.rollback();
+        console.error("cancelRentalService error:", error);
+        return { EC: -1, EM: "Internal server error", DT: null };
     }
-
-    const rental = await Rental.findOne({
-      where: { RentalId: rentalId },
-      transaction: t,
-      lock: t.LOCK.UPDATE,
-    });
-
-    if (!rental) {
-      await t.rollback();
-      return { EC: 1, EM: "Rental not found", DT: null };
-    }
-
-    if (rental.RentalStatus !== "approved") {
-      await t.rollback();
-      return {
-        EC: 1,
-        EM: `Cannot cancel rental in status '${rental.RentalStatus}'`,
-        DT: null,
-      };
-    }
-
-    const pick = combineSQLDateTime(
-      rental.PickUpDate,
-      rental.PickUpTime
-    );
-
-    if (Date.now() >= pick.getTime()) {
-      await t.rollback();
-      return {
-        EC: 1,
-        EM: "Cannot cancel rental after it has started",
-        DT: null,
-      };
-    }
-
-    await rental.update(
-      {
-        RentalStatus: "cancelled",
-        ProcessedBy: employeeId,
-      },
-      { transaction: t }
-    );
-
-    await t.commit();
-    return { EC: 0, EM: "Rental cancelled", DT: { RentalId: rentalId } };
-  } catch (error) {
-    if (t && !t.finished) await t.rollback();
-    console.error("cancelRentalService error:", error);
-    return { EC: -1, EM: "Internal server error", DT: null };
-  }
 };
 
 module.exports = {

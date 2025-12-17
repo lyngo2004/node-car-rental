@@ -28,72 +28,88 @@ const getRentalSummaryController = async (req, res) => {
 };
 
 const getRentalByIdController = async (req, res) => {
-  const { id } = req.params;
+    const { id } = req.params;
 
-  if (!id) {
-    return res.status(400).json({
-      EC: 1,
-      EM: "Missing rental id",
-      DT: null,
-    });
-  }
+    if (!id) {
+        return res.status(400).json({
+            EC: 1,
+            EM: "Missing rental id",
+            DT: null,
+        });
+    }
 
-  const data = await fetchRentalByIdService(id);
-  return res.status(200).json(data);
+    const data = await fetchRentalByIdService(id);
+    return res.status(200).json(data);
+};
+
+const getRentalsByStatusController = async (req, res) => {
+    const { status } = req.params;
+
+    if (!status) {
+        return res.status(400).json({
+            EC: 1,
+            EM: "Missing rental id",
+            DT: null,
+        });
+    }
+
+    const data = await fetchRentalsByStatusService(status);
+    return res.status(200).json(data);
 };
 
 const approveRentalController = async (req, res) => {
-  const { id } = req.params;
-  const adminUserId = req.user?.userId; // lấy từ JWT
+    const { id } = req.params;
+    const adminUserId = req.user?.userId; // lấy từ JWT
 
-  if (!id) {
-    return res.status(400).json({
-      EC: 1,
-      EM: "Missing rental id",
-      DT: null,
-    });
-  }
+    if (!id) {
+        return res.status(400).json({
+            EC: 1,
+            EM: "Missing rental id",
+            DT: null,
+        });
+    }
 
-  const data = await approveRentalService(id, adminUserId);
-  return res.status(200).json(data);
+    const data = await approveRentalService(id, adminUserId);
+    return res.status(200).json(data);
 };
 
 const rejectRentalController = async (req, res) => {
-  const { id } = req.params;
-  const adminUserId = req.user?.userId;
+    const { id } = req.params;
+    const adminUserId = req.user?.userId;
 
-  if (!id) {
-    return res.status(400).json({
-      EC: 1,
-      EM: "Missing rental id",
-      DT: null,
-    });
-  }
+    if (!id) {
+        return res.status(400).json({
+            EC: 1,
+            EM: "Missing rental id",
+            DT: null,
+        });
+    }
 
-  const data = await rejectRentalService(id, adminUserId);
-  return res.status(200).json(data);
+    const data = await rejectRentalService(id, adminUserId);
+    return res.status(200).json(data);
 };
 
 const cancelRentalController = async (req, res) => {
-  const { id } = req.params;
-  const adminUserId = req.user?.userId;
+    const { id } = req.params;
+    const adminUserId = req.user?.userId;
 
-  if (!id) {
-    return res.status(400).json({
-      EC: 1,
-      EM: "Missing rental id",
-      DT: null,
-    });
-  }
+    if (!id) {
+        return res.status(400).json({
+            EC: 1,
+            EM: "Missing rental id",
+            DT: null,
+        });
+    }
 
-  const data = await cancelRentalService(id, adminUserId);
-  return res.status(200).json(data);
+    const data = await cancelRentalService(id, adminUserId);
+    return res.status(200).json(data);
 };
 
 module.exports = {
     getAllRentalsController,
     getRentalSummaryController,
     getRentalByIdController,
+    getRentalsByStatusController,
     approveRentalController,
     rejectRentalController,
     cancelRentalController
