@@ -1,7 +1,8 @@
 // src/services/userService.js
 const UserAccount = require("../models/UserAccount");
 const Customer = require("../models/Customer");
-const Employee = require("../models/Employee")
+const Employee = require("../models/Employee");
+const Rental = require('../models/Rental')
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { Op } = require("sequelize");
@@ -29,7 +30,7 @@ const createUserService = async (username, email, password) => {
 
     // 3. Generate new UserId: UA###
     const prefixUser = "UA";
-    const latestUser = await User.findOne({
+    const latestUser = await UserAccount.findOne({
       where: { UserId: { [Op.like]: `${prefixUser}%` } },
       order: [["UserId", "DESC"]],
       transaction: t,
@@ -145,6 +146,7 @@ const loginService = async (username, password) => {
   }
 };
 
+
 // CREATE ADMIN SERVICE
 
 const createAdminWithEmployeeService = async ({
@@ -246,6 +248,8 @@ const createAdminWithEmployeeService = async ({
     return { EC: -1, EM: "Server error", DT: null };
   }
 };
+
+
 
 module.exports = {
   createUserService,

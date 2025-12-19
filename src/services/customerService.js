@@ -1,6 +1,8 @@
 // services/customerService.js
 const Customer = require("../models/Customer");
 const User = require("../models/UserAccount");
+const Rental = require('../models/Rental')
+const { Op } = require("sequelize");
 
 /**
  * Lấy thông tin customer hiện tại từ userId

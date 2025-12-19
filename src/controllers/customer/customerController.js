@@ -1,5 +1,8 @@
 // controllers/customerController.js
-const { getCurrentCustomerService } = require("../../services/customerService");
+const { 
+  getCurrentCustomerService,
+  getCustomerNotifications
+ } = require("../../services/customerService");
 
 const getCurrentCustomerController = async (req, res) => {
   const userId = req.user.userId;

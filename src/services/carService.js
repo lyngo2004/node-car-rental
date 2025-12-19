@@ -146,7 +146,7 @@ const fetchAvailableCarsByPickDrop = async (params) => {
             };
         }
 
-        const cars = await queryCars({}, true);
+        const cars = await queryCars({ CarStatus: "Active" }, true);
         const availableCars = filterAvailableCarsFromList(cars, newStart, newEnd);
 
         return {
@@ -233,88 +233,163 @@ const fetchCarsByFilters = async (params) => {
             pickupDate,
             pickupTime,
             dropoffDate,
-            dropoffTime
+            dropoffTime,
         } = params;
 
-        // Build where clause for Car
-        const where = {};
-        // Types: support array or comma-separated string
-        const typesArr = parseMultiParam(type);
-        if (typesArr.length > 0) where.CarType = { [Op.in]: typesArr };
-        // Capacities: support array or comma-separated string
-        const capConverted = parseCapacityParam(capacity);
-        if (capConverted.length > 0) where.Capacity = { [Op.in]: capConverted };
+        // ================== 1. PICK / DROP LOGIC (GIỐNG fetchAvailableCarsByPickDrop) ==================
+        const needAvailability =
+            pickupDate && pickupTime && dropoffDate && dropoffTime;
 
-        // Price range - validate numeric inputs/construct where clause
-        const priceCheck = buildPriceWhere(min, max);
-        if (priceCheck.error) return { EC: priceCheck.error.EC, EM: priceCheck.error.EM, DT: null };
-        if (priceCheck.where) where.PricePerDay = priceCheck.where;
-
-        // Decide whether we need to include rentals for availability check
-        const needAvailability = pickupDate && pickupTime && dropoffDate && dropoffTime;
         let newStart, newEnd;
+
         if (needAvailability) {
             const now = new Date();
+
             newStart = buildDateObject(pickupDate, pickupTime);
             newEnd = buildDateObject(dropoffDate, dropoffTime);
 
-
             if (newStart < now) {
-                return { EC: 7, EM: 'Pick-up time cannot be in the past', DT: null };
+                return {
+                    EC: 1,
+                    EM: "Pick-up time cannot be in the past.",
+                    DT: null,
+                };
             }
+
             if (newEnd < now) {
-                return { EC: 8, EM: 'Drop-off time cannot be in the past', DT: null };
+                return {
+                    EC: 2,
+                    EM: "Drop-off time cannot be in the past.",
+                    DT: null,
+                };
             }
+
             if (newEnd <= newStart) {
-                return { EC: 9, EM: 'Drop-off time must be after pick-up time', DT: null };
+                return {
+                    EC: 3,
+                    EM: "Drop-off time must be after pick-up time.",
+                    DT: null,
+                };
             }
         }
 
-        const cars = await queryCars(where, needAvailability);
+        // ================== 2. FETCH ALL ACTIVE CARS ==================
+        const baseWhere = { CarStatus: "Active" };
 
-        // Filter by availability only if we asked for it
+        const cars = await queryCars(baseWhere, needAvailability);
+
+        // ================== 3. FILTER BY AVAILABILITY FIRST ==================
         let resultCars = cars;
+
         if (needAvailability) {
-            resultCars = filterAvailableCarsFromList(cars, newStart, newEnd);
+            resultCars = filterAvailableCarsFromList(
+                resultCars,
+                newStart,
+                newEnd
+            );
         }
 
+        // ================== 4. FILTER BY TYPE ==================
+        const typesArr = parseMultiParam(type);
+        if (typesArr.length > 0) {
+            resultCars = resultCars.filter((car) =>
+                typesArr.includes(car.CarType)
+            );
+        }
+
+        // ================== 5. FILTER BY CAPACITY ==================
+        const capConverted = parseCapacityParam(capacity);
+        if (capConverted.length > 0) {
+            resultCars = resultCars.filter((car) =>
+                capConverted.includes(car.Capacity)
+            );
+        }
+
+        // ================== 6. FILTER BY PRICE ==================
+        const priceCheck = buildPriceWhere(min, max);
+        if (priceCheck.error) {
+            return {
+                EC: priceCheck.error.EC,
+                EM: priceCheck.error.EM,
+                DT: null,
+            };
+        }
+
+        if (priceCheck.where) {
+            const priceWhere = priceCheck.where;
+
+            resultCars = resultCars.filter((car) => {
+                const price = Number(car.PricePerDay);
+
+                // BETWEEN
+                if (priceWhere[Op.between]) {
+                    const [minP, maxP] = priceWhere[Op.between];
+                    return price >= minP && price <= maxP;
+                }
+
+                // >=
+                if (priceWhere[Op.gte] !== undefined) {
+                    return price >= priceWhere[Op.gte];
+                }
+
+                // <=
+                if (priceWhere[Op.lte] !== undefined) {
+                    return price <= priceWhere[Op.lte];
+                }
+
+                return true;
+            });
+        }
+
+
+        // ================== 7. RETURN RESULT ==================
         return {
             EC: 0,
             EM: "Success",
-            DT: resultCars
+            DT: resultCars,
         };
-
     } catch (error) {
-        console.log('>>> fetchCarsByFilters error:', error);
-        return { EC: -1, EM: 'Internal server error', DT: null };
+        console.log(">>> fetchCarsByFilters error:", error);
+        return {
+            EC: -1,
+            EM: "Internal server error",
+            DT: null,
+        };
     }
 };
 
 const fetchCarById = async (carId) => {
     try {
-        const car = await Car.findByPk(carId);
+        const car = await Car.findOne({
+            where: {
+                CarId: carId,
+                CarStatus: "Active",
+            },
+        });
 
         if (!car) {
             return {
                 EC: 1,
                 EM: "Car not found",
-                DT: null
+                DT: null,
             };
         }
+
         return {
             EC: 0,
             EM: "Success",
-            DT: car
+            DT: car,
         };
     } catch (error) {
         console.log(">>> fetchCarById error:", error);
         return {
             EC: -1,
             EM: "Internal server error",
-            DT: null
+            DT: null,
         };
     }
 };
+
 
 const fetchAllAdminCarsService = async () => {
     const cars = await Car.findAll({
@@ -439,117 +514,109 @@ const createAdminCarService = async (payload, file) => {
 };
 
 const updateAdminCarService = async (carId, payload, file) => {
-  let t;
-  let newImagePublicId = null;
+    let t;
+    let newImagePublicId = null;
 
-  try {
-    // 1. Find car
-    const car = await Car.findByPk(carId);
+    try {
+        // 1. Find car
+        const car = await Car.findByPk(carId);
 
-    if (!car) {
-      return { EC: 1, EM: "Car not found", DT: null };
+        if (!car) {
+            return { EC: 1, EM: "Car not found", DT: null };
+        }
+
+        // 2. Prepare updated fields
+        const updateData = {
+            LicensePlate: payload.LicensePlate ?? car.LicensePlate,
+            Brand: payload.Brand ?? car.Brand,
+            Model: payload.Model ?? car.Model,
+            ManufactureYear: payload.ManufactureYear ?? car.ManufactureYear,
+            PricePerDay: payload.PricePerDay ?? car.PricePerDay,
+            CarType: payload.CarType ?? car.CarType,
+            Capacity: payload.Capacity ?? car.Capacity,
+            Mileage: payload.Mileage ?? car.Mileage,
+            Color: payload.Color ?? car.Color,
+            Description: payload.Description ?? car.Description,
+            CarStatus: payload.CarStatus ?? car.CarStatus,
+        };
+
+        // 3. Nếu có ảnh mới (đã upload sẵn bởi uploadCloud)
+        if (file) {
+            updateData.ImagePath = file.path;       // secure_url
+            updateData.PublicImageId = file.filename; // public_id
+            newImagePublicId = file.filename;
+        }
+
+        // 4. Transaction
+        t = await sequelize.transaction();
+
+        const oldPublicImageId = car.PublicImageId;
+
+        await car.update(updateData, { transaction: t });
+
+        await t.commit();
+
+        // 5. Delete old image AFTER commit
+        if (file && oldPublicImageId) {
+            await deleteCarImage(oldPublicImageId);
+        }
+
+        return {
+            EC: 0,
+            EM: "Car updated successfully",
+            DT: car,
+        };
+    } catch (error) {
+        if (t && !t.finished) await t.rollback();
+
+        // rollback new image if DB failed
+        if (newImagePublicId) {
+            await deleteCarImage(newImagePublicId);
+        }
+
+        console.error("updateAdminCarService error:", error);
+        return { EC: -1, EM: "Internal server error", DT: null };
     }
-
-    // 2. Prepare updated fields
-    const updateData = {
-      LicensePlate: payload.LicensePlate ?? car.LicensePlate,
-      Brand: payload.Brand ?? car.Brand,
-      Model: payload.Model ?? car.Model,
-      ManufactureYear: payload.ManufactureYear ?? car.ManufactureYear,
-      PricePerDay: payload.PricePerDay ?? car.PricePerDay,
-      CarType: payload.CarType ?? car.CarType,
-      Capacity: payload.Capacity ?? car.Capacity,
-      Mileage: payload.Mileage ?? car.Mileage,
-      Color: payload.Color ?? car.Color,
-      Description: payload.Description ?? car.Description,
-      CarStatus: payload.CarStatus ?? car.CarStatus,
-    };
-
-    // 3. Nếu có ảnh mới (đã upload sẵn bởi uploadCloud)
-    if (file) {
-      updateData.ImagePath = file.path;       // secure_url
-      updateData.PublicImageId = file.filename; // public_id
-      newImagePublicId = file.filename;
-    }
-
-    // 4. Transaction
-    t = await sequelize.transaction();
-
-    const oldPublicImageId = car.PublicImageId;
-
-    await car.update(updateData, { transaction: t });
-
-    await t.commit();
-
-    // 5. Delete old image AFTER commit
-    if (file && oldPublicImageId) {
-      await deleteCarImage(oldPublicImageId);
-    }
-
-    return {
-      EC: 0,
-      EM: "Car updated successfully",
-      DT: car,
-    };
-  } catch (error) {
-    if (t && !t.finished) await t.rollback();
-
-    // rollback new image if DB failed
-    if (newImagePublicId) {
-      await deleteCarImage(newImagePublicId);
-    }
-
-    console.error("updateAdminCarService error:", error);
-    return { EC: -1, EM: "Internal server error", DT: null };
-  }
 };
 
 const deleteAdminCarService = async (carId) => {
-  let t;
+    let t;
 
-  try {
-    const car = await Car.findByPk(carId);
+    try {
+        const car = await Car.findByPk(carId);
 
-    if (!car) {
-      return { EC: 1, EM: "Car not found", DT: null };
+        if (!car) {
+            return { EC: 1, EM: "Car not found", DT: null };
+        }
+
+        if (car.CarStatus === "Inactive") {
+            return {
+                EC: 1,
+                EM: "Car is already inactive",
+                DT: null,
+            };
+        }
+
+        t = await sequelize.transaction();
+
+        await car.update(
+            { CarStatus: "Inactive" },
+            { transaction: t }
+        );
+
+        await t.commit();
+
+        return {
+            EC: 0,
+            EM: "Car deactivated successfully",
+            DT: null,
+        };
+    } catch (error) {
+        if (t && !t.finished) await t.rollback();
+
+        console.error("deleteAdminCarService error:", error);
+        return { EC: -1, EM: "Internal server error", DT: null };
     }
-
-    // 1. Check rental tồn tại
-    const rentalCount = await Rental.count({
-      where: { CarId: carId },
-    });
-
-    if (rentalCount > 0) {
-      return {
-        EC: 1,
-        EM: "Cannot delete car with rental history",
-        DT: null,
-      };
-    }
-
-    t = await sequelize.transaction();
-
-    // 2. Delete car
-    await car.destroy({ transaction: t });
-
-    await t.commit();
-
-    // 3. Delete image Cloudinary
-    if (car.PublicImageId) {
-      await deleteCarImage(car.PublicImageId);
-    }
-
-    return {
-      EC: 0,
-      EM: "Car deleted successfully",
-      DT: null,
-    };
-  } catch (error) {
-    if (t && !t.finished) await t.rollback();
-
-    console.error("deleteAdminCarService error:", error);
-    return { EC: -1, EM: "Internal server error", DT: null };
-  }
 };
 
 
