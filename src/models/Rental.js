@@ -21,7 +21,7 @@ const Rental = sequelize.define('Rental', {
     RentalStatus: { type: DataTypes.STRING, allowNull: true },
     TotalAmount: { type: DataTypes.DECIMAL(18, 2), allowNull: true },
     ProcessedBy: { type: DataTypes.STRING(450), allowNull: true },
-    IssuedDate: { type: DataTypes.DATE, allowNull: false }
+    IssuedDate: { type: DataTypes.DATE, allowNull: false },
 }, {
     tableName: 'Rental',
     timestamps: false
