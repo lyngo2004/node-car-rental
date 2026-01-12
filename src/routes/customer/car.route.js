@@ -5,7 +5,7 @@ const {
     getFilterOptionsController,
     filterCarsByFiltersController,
     getCarByIdController
-} = require('../controllers/carController');
+} = require('../../controllers/customer/carController');
 
 const router = express.Router();
 

@@ -18,7 +18,8 @@ const Car = sequelize.define('Car', {
     Capacity: { type: DataTypes.INTEGER, allowNull: true },
     Color: { type: DataTypes.STRING, allowNull: true },
     Description: { type: DataTypes.STRING, allowNull: true },
-    ImagePath: { type: DataTypes.STRING(255), allowNull: true }
+    ImagePath: { type: DataTypes.STRING(255), allowNull: true },
+    PublicImageId: { type: DataTypes.STRING(255), allowNull: true }
 }, {
     tableName: 'Car',
     timestamps: false
