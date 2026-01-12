@@ -1,7 +1,7 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
-console.log("🔍 [Sequelize ENV CHECK]");
+console.log(" [Sequelize ENV CHECK]");
 console.log({
   SEQ_DATABASE: process.env.SEQ_DATABASE,
   SEQ_USER: process.env.SEQ_USER,
